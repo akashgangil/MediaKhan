@@ -1,4 +1,4 @@
-# Object files
+#Object files
 *.o
 
 # Libraries
@@ -30,6 +30,6 @@ khan
 *.app
 
 # Machine Dependent
-khan_root
-khan_root2
-khan_root3
+#khan_root
+#khan_root2
+#khan_root3
