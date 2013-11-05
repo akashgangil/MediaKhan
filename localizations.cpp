@@ -86,7 +86,7 @@ int get_attr_numeric_val(string attr, string val) {
   //get all attr vals
   vector<string> vals = get_all_attr_vals(attr);
   //sort
-  sort(vals.begin(), vals.end());
+  //sort(vals.begin(), vals.end());
   //return index of val
   int index = 0;
   for(int i =0; i<vals.size(); i++) {
