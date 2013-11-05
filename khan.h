@@ -14,6 +14,8 @@
 #include <iterator>
 #include <libgen.h>
 #include <list>
+#include <mach/mach.h>
+#include <mach/mach_time.h>
 #include <map>
 #include <memory>
 #include <signal.h>
@@ -24,12 +26,11 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <time.h>
 #include <unistd.h>
 #include <vector>
 
 #ifdef APPLE
-  #include "Python/Python.h"
+  #include "Python.h"
 #else
   #include "Python.h"
 #endif

@@ -30,6 +30,16 @@ khan
 *.app
 
 # Machine Dependent
+.DS_Store
+
+# Experimental
 #khan_root
 #khan_root2
 #khan_root3
+khan_root1001
+khan_root4001
+test
+start_times.txt
+rename_times.txt
+dump.rdb
+dir_cpy_tims.txt

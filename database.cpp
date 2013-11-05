@@ -36,6 +36,11 @@ bool init_database(){
     return redis_init();
   }
   #endif
+  #ifdef BDB_FOUND
+    if(DATABASE==BDB) {
+      return bdb_init();
+    }
+  #endif
 }
 
 
@@ -49,7 +54,6 @@ string database_setval(string file_id, string col, string val){
     clock_gettime(CLOCK_REALTIME,&start);
     string retstring="fail";
     retstring=voldemort_setval(file_id,col,val);
-    retstring= voldemort_setval(file_id,col,val);
     clock_gettime(CLOCK_REALTIME,&stop);
     time_spent = (stop.tv_sec-start.tv_sec)+(stop.tv_nsec-start.tv_nsec)/BILLION; tot_time += time_spent;
     vold_avg_time=(vold_avg_time*(vold_calls-1)+time_spent)/vold_calls;
@@ -68,6 +72,12 @@ string database_setval(string file_id, string col, string val){
     return retstring;
   }
   #endif
+  #ifdef BDB_FOUND
+  if(DATABASE==BDB) {
+    string retstring = bdb_setval(file_id, col, val);
+    return retstring;
+  }
+  #endif  
 }
 
 
@@ -77,7 +87,7 @@ string database_getval(string col, string val){
   val=trim(val);
   #ifdef VOLDEMORT_FOUND
   if(DATABASE==VOLDEMORT){
-    log_msg("using vold");
+    //log_msg("using vold");
     vold_calls++;
     clock_gettime(CLOCK_REALTIME,&start);
     string retstring=voldemort_getval(col,val);
@@ -99,6 +109,12 @@ string database_getval(string col, string val){
     return retstring;
   }
   #endif
+  #ifdef BDB_FOUND
+  if(DATABASE==BDB) {
+    string retstring = bdb_getval(col, val);
+    return retstring;
+  }
+  #endif  
 }
 
 string database_getvals(string col){
@@ -125,6 +141,12 @@ string database_getvals(string col){
     return retstr;
   }
   #endif
+  #ifdef BDB_FOUND
+  if(DATABASE==BDB) {
+    string retstring = bdb_getkey_cols(col);
+    return retstring;
+  }
+  #endif  
 }
 
 void database_remove_val(string file, string col, string val){
@@ -154,6 +176,12 @@ void database_remove_val(string file, string col, string val){
   }
   return;
   #endif
+  #ifdef BDB_FOUND
+    if(DATABASE==BDB) {
+      bdb_remove_val(file, col, val);
+      return;
+    }
+  #endif  
 }
 
 
