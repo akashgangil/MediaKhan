@@ -1,3 +1,10 @@
+/*
+#ifdef APPLE
+  #include "Python.h"
+#else
+  #include "Python.h"
+#endif
+*/
 #include "config.h"
 #include "params.h"
 #include <algorithm>
@@ -29,11 +36,6 @@
 #include <unistd.h>
 #include <vector>
 
-#ifdef APPLE
-  #include "Python.h"
-#else
-  #include "Python.h"
-#endif
 
 #include "log.h"
 #include "utils.h"

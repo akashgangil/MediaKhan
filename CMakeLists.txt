@@ -4,12 +4,15 @@ project(MEDIAKHAN)
 include(CheckIncludeFiles)
 
 include_directories(/usr/local/include/)
-include_directories(/usr/local/include/fuse)
-include_directories(/usr/local/include/osxfuse/fuse)
-include_directories(/opt/local/include/fuse)
+
+include_directories(../fuse-2.9.3/include)
+include_directories(..)
+include_directories(/net/hu21/agangil3/python/include/python2.7)
 
 link_directories(/usr/local/lib)
 link_directories(/opt/local/lib)
+link_directories(/net/hu21/agangil3/python/lib/python2.7)
+link_directories(/net/hu21/agangil3/hiredis)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
 set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -pg")
