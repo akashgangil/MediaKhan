@@ -1,2 +1,2 @@
 laptop
-/home/gangil/dev/MediaKhan/ihpcae laptop
+/home/gangil/dev/ScientificKhan/MediaKhan/media laptop

@@ -1,0 +1,11 @@
+im7
+- S : khan.py -t 1
+- Pressure : khan.py -t 2
+- Kelvin : khan.py -t 3
+- Velocity : khan.py -t 4
+- Composition : khan.py -t 5
+- Phi : khan.py -t 6
+- Temperature : khan.py -t 7
+- Date : khan.py -t 8
+- Time : khan.py -t 9
+
