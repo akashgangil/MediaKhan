@@ -17,31 +17,50 @@ s = args[0]
 a = s.split("/")
 
 def S():
-    return a[5].split(" ")[2]
+    for i in a:
+      if 'S = ' in i:
+        return i.split(" ")[2]
 
 def Pressure():
-    return a[6].split(" ")[0]
+    for i in a:
+      if 'atm' in i:
+        return i.split(" ")[0]
 
 def Kelvin():
-    return a[7].split(" ")[0]
+    for i in a:
+      if 'K' in i:
+        return i.split(" ")[0]
 
 def Velocity():
-    return a[8].split(" ")[0]
+    for i in a:
+      if 'mps' in i:
+        return i.split(" ")[0]
 
 def Composition():
+    for i in a:
+      if 'S = ' in i:
+        return i.split(" ")[2]
     return a[9]
 
 def Phi():
-    return a[10].split(" ")[2]
+    for i in a:
+      if 'phi' in i:
+        return i.split(" ")[2]
 
 def Temperature():
-    return a[11].split(" ")[0]
+    for i in a:
+      if 'deg' in i:
+        return i.split(" ")[0]
 
 def Date():
-    return a[12].split("=")[1].split("_")[0]
+    for i in a:
+      if 'Cam_Date' in i:
+        return i.split("=")[1].split("_")[0]
 
 def Time():
-    return a[12].split("=")[2]
+    for i in a:
+      if 'Cam_Date' in i:
+        return i.split("=")[2]
 
 attr = {1:S, 2:Pressure, 3:Kelvin, 4:Velocity, 5:Composition, 6:Phi, 7:Temperature, 8:Date, 9:Time}
 
