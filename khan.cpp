@@ -26,31 +26,31 @@ string this_server_id;
 ofstream rename_times;
 ofstream start_times;
 /*
-void cloud_upload(string path) {
-	FILE* stream=popen(("id3convert -1 -2 '"+path+"'").c_str(),"r");
-	pclose(stream);
-	//cout << " Uploading song " << path << endl;
-	PyObject* arglist = PyTuple_New(1);
-	PyTuple_SetItem(arglist, 0, PyString_FromString(path.c_str()));
-	PyObject* myFunction =PyObject_GetAttrString(cloud_interface,(char*)"upload_song");
-	PyObject* myResult = PyObject_CallObject(myFunction, arglist);
-	if(myResult==NULL) {
-		PyErr_PrintEx(0);
-	}
+   void cloud_upload(string path) {
+   FILE* stream=popen(("id3convert -1 -2 '"+path+"'").c_str(),"r");
+   pclose(stream);
+//cout << " Uploading song " << path << endl;
+PyObject* arglist = PyTuple_New(1);
+PyTuple_SetItem(arglist, 0, PyString_FromString(path.c_str()));
+PyObject* myFunction =PyObject_GetAttrString(cloud_interface,(char*)"upload_song");
+PyObject* myResult = PyObject_CallObject(myFunction, arglist);
+if(myResult==NULL) {
+PyErr_PrintEx(0);
+}
 }
 
 void cloud_download(string song, string path) {
-	//cout << " Downloading song " << song << " to " << path << endl;
-	PyObject* arglist = PyTuple_New(2);
-	PyTuple_SetItem(arglist, 0, PyString_FromString(song.c_str()));
-	PyTuple_SetItem(arglist, 1, PyString_FromString(path.c_str()));
-	PyObject* myFunction = PyObject_GetAttrString(cloud_interface,(char*)"get_song");
-	PyObject* myResult = PyObject_CallObject(myFunction, arglist);
-	if(myResult==NULL) {
-		PyErr_PrintEx(0);
-	}
-	FILE* stream=popen(("id3convert -1 '"+path+"'").c_str(),"r");
-	pclose(stream);
+//cout << " Downloading song " << song << " to " << path << endl;
+PyObject* arglist = PyTuple_New(2);
+PyTuple_SetItem(arglist, 0, PyString_FromString(song.c_str()));
+PyTuple_SetItem(arglist, 1, PyString_FromString(path.c_str()));
+PyObject* myFunction = PyObject_GetAttrString(cloud_interface,(char*)"get_song");
+PyObject* myResult = PyObject_CallObject(myFunction, arglist);
+if(myResult==NULL) {
+PyErr_PrintEx(0);
+}
+FILE* stream=popen(("id3convert -1 '"+path+"'").c_str(),"r");
+pclose(stream);
 }
 */
 
@@ -97,7 +97,7 @@ void process_transducers(string server) {
 
 /*processes files: issues the mp3info command for the file
   and fills in the values of the attributes*/
-void process_file(string server, string fileid) {
+void process_file(string server, string fileid, string file_path) {
 	printf("Inside the Process File \n");
 	string file = database_getval(fileid, "name");
 	string ext = database_getval(fileid, "ext");
@@ -116,7 +116,7 @@ void process_file(string server, string fileid) {
 				cout << "command is null, skipping" << endl;
 				continue;
 			}
-			string msg2=(cmd+" \""+file+"\"").c_str();
+			string msg2=(cmd+" \""+file_path+"\"").c_str();
 			cout << "========= issuing command =   " << msg2 <<endl;
 			FILE* stream=popen(msg2.c_str(),"r");
 			if(fgets(msg,200,stream)!=0){
@@ -243,114 +243,123 @@ int initializing_khan(char * mnt_dir) {
 	cout << "================= types to look for ="<<types<<endl;
 	cout << "Server Size" << servers.size() << endl;
 	for(int i=0; i<servers.size(); i++) {
-/*		if(servers.at(i) == "cloud") {
-			cout << " Cloud \n";
-			PyObject* myFunction = PyObject_GetAttrString(cloud_interface,(char*)"get_all_titles");
-			PyObject* myResult = PyObject_CallObject(myFunction, NULL);
-			if(myResult==NULL) {
+		/*		if(servers.at(i) == "cloud") {
+				cout << " Cloud \n";
+				PyObject* myFunction = PyObject_GetAttrString(cloud_interface,(char*)"get_all_titles");
+				PyObject* myResult = PyObject_CallObject(myFunction, NULL);
+				if(myResult==NULL) {
 				PyErr_PrintEx(0);
 				continue;
-			}
-			int n = PyList_Size(myResult);
-			//cout << "SIZE = " << n << endl << flush;
-			for(int j = 0; j<n; j++) {
-				PyObject* title = PyList_GetItem(myResult, j);
-				char* temp = PyString_AsString(title);
-				if(temp==NULL) {
-					PyErr_PrintEx(0);
-					continue;
 				}
-				string filename = temp;
-				//cout << "Checking " << filename << " ... " << endl << flush;
-				if(database_getval("name",filename)=="null") {
-					string fileid = database_setval("null","name",filename);
-					string ext = strrchr(filename.c_str(),'.')+1;
-					database_setval(fileid,"ext",ext);
-					database_setval(fileid,"server",servers.at(i));
-					database_setval(fileid,"location",server_ids.at(i));
-					string attrs=database_getval(ext,"attrs");
-					string token="";
-					stringstream ss2(attrs.c_str());
-					PyObject* myFunction = PyObject_GetAttrString(cloud_interface,(char*)"get_metadata");
-					while(getline(ss2,token,':')){
-						if(strcmp(token.c_str(),"null")!=0){
-							//cout << "========= looking at attr =   " << token << endl << flush;
-							PyObject* arglist = PyTuple_New(2);
-							PyTuple_SetItem(arglist, 0, PyString_FromString(filename.c_str()));
-							PyTuple_SetItem(arglist, 1, PyString_FromString(token.c_str()));
-							PyObject* myResult = PyObject_CallObject(myFunction, arglist);
-							//cout << myResult << endl << flush;
-							if(myResult==NULL) {
-								PyErr_PrintEx(0);
-								continue;
-							}
-							char* msg = PyString_AsString(myResult);
-							if(!msg) {
-								PyErr_PrintEx(0);
-								continue;
-							}
-							string val = msg;
-							Py_DECREF(arglist);
-							Py_DECREF(myResult);
-							//cout << "========= got val =   " << val << endl << flush;
-							if(val!="na") {
-								database_setval(fileid,token,val);
-							}
-						}
-					}
-				}
-			}
+				int n = PyList_Size(myResult);
+		//cout << "SIZE = " << n << endl << flush;
+		for(int j = 0; j<n; j++) {
+		PyObject* title = PyList_GetItem(myResult, j);
+		char* temp = PyString_AsString(title);
+		if(temp==NULL) {
+		PyErr_PrintEx(0);
+		continue;
+		}
+		string filename = temp;
+		//cout << "Checking " << filename << " ... " << endl << flush;
+		if(database_getval("name",filename)=="null") {
+		string fileid = database_setval("null","name",filename);
+		string ext = strrchr(filename.c_str(),'.')+1;
+		database_setval(fileid,"ext",ext);
+		database_setval(fileid,"server",servers.at(i));
+		database_setval(fileid,"location",server_ids.at(i));
+		string attrs=database_getval(ext,"attrs");
+		string token="";
+		stringstream ss2(attrs.c_str());
+		PyObject* myFunction = PyObject_GetAttrString(cloud_interface,(char*)"get_metadata");
+		while(getline(ss2,token,':')){
+		if(strcmp(token.c_str(),"null")!=0){
+		//cout << "========= looking at attr =   " << token << endl << flush;
+		PyObject* arglist = PyTuple_New(2);
+		PyTuple_SetItem(arglist, 0, PyString_FromString(filename.c_str()));
+		PyTuple_SetItem(arglist, 1, PyString_FromString(token.c_str()));
+		PyObject* myResult = PyObject_CallObject(myFunction, arglist);
+		//cout << myResult << endl << flush;
+		if(myResult==NULL) {
+		PyErr_PrintEx(0);
+		continue;
+		}
+		char* msg = PyString_AsString(myResult);
+		if(!msg) {
+		PyErr_PrintEx(0);
+		continue;
+		}
+		string val = msg;
+		Py_DECREF(arglist);
+		Py_DECREF(myResult);
+		//cout << "========= got val =   " << val << endl << flush;
+		if(val!="na") {
+		database_setval(fileid,token,val);
+		}
+		}
+		}
+		}
+		}
 		} else {
-*/
-			cout << "Not Cloud \n";
+		*/
+		cout << "Not Cloud \n";
 
-//			string command = "find -type d | awk -F'/' '{print NF-1}' | sort -n | tail -1";
-			string command = "find /net/hp100/ihpcae -type d | awk -F'/' '{print NF-1}' | sort -n | tail -1";
+		//			string command = "find -type d | awk -F'/' '{print NF-1}' | sort -n | tail -1";
+		//string command = "find /net/hp100/ihpcae -type d | awk -F'/' '{print NF-1}' | sort -n | tail -1";
 
-			glob_t files;
-			string pattern="**";
+		glob_t files;
+		string pattern="/net/hp100/ihpcae/*";
+		/*
+		   FILE* pipe = popen(command.c_str(), "r");
+		   if(!pipe) return -1; 
 
-			FILE* pipe = popen(command.c_str(), "r");
-			if(!pipe) return -1; 
-
-			char result[100];
-			if(fgets(result,128, pipe) != NULL)
-				cout<<"****RESULT******"<<result<<"\n";    
-
-			int count = atoi(result);
-			while(count--)
-			{  
-				cout << "Globbing with pattern " << pattern + ".mp3\n" << endl; 
-				glob((pattern +".mp3").c_str(), 0, NULL, &files);
-				cout << "Glob buffer" << files.gl_pathc << "\n";
-				for(int j=0; j<files.gl_pathc; j++) {//for each file
-					string file = files.gl_pathv[j];
-					cout << "************File PATH : ***************" << file << "\n";
-					string ext = strrchr(file.c_str(),'.')+1;
-					string filename=strrchr(file.c_str(),'/')+1;
-					if(database_getval("name", filename) == "null" || 1) {
-						string fileid = database_setval("null","name",filename);
-						database_setval(fileid,"ext",ext);
-						database_setval(fileid,"server",servers.at(i));
-						database_setval(fileid,"location",server_ids.at(i));
-						for(int k=0; k<server_ids.size(); k++) {
-							database_setval(fileid, server_ids.at(k), "0");
+		   char result[100];
+		   if(fgets(result,128, pipe) != NULL)
+		   cout<<"****RESULT******"<<result<<"\n";    
+		   */
+		//			int count = atoi(result);
+/*#pragma omp parallel
+		{
+#pragma omp single nowait
+			{*/
+				for(int count = 18; count > 0; count--)
+				{  
+//#pragma omp task
+	//				{
+						cout << "Globbing with pattern " << pattern + ".im7\n" << endl; 
+						glob((pattern +".im7").c_str(), 0, NULL, &files);
+						cout << "Glob buffer" << files.gl_pathc << "\n";
+						for(int j=0; j<files.gl_pathc; j++) {//for each file
+							string file_path = files.gl_pathv[j];
+							cout << "************File PATH : ***************" << file_path << "\n";
+							string ext = strrchr(file_path.c_str(),'.')+1;
+							string filename=strrchr(file_path.c_str(),'/')+1;
+							if(database_getval("name", filename) == "null" || 1) {
+								string fileid = database_setval("null","name",filename);
+								database_setval(fileid,"ext",ext);
+								database_setval(fileid,"server",servers.at(i));
+								database_setval(fileid,"location",server_ids.at(i));
+								for(int k=0; k<server_ids.size(); k++) {
+									database_setval(fileid, server_ids.at(k), "0");
+								}
+								process_file(servers.at(i), fileid, file_path);
+							} else {
+								string fileid = database_getval("name",filename);
+								database_setval(fileid,"server",servers.at(i));
+								database_setval(fileid,"location",server_ids.at(i));
+							}
 						}
-						process_file(servers.at(i), fileid);
-					} else {
-						string fileid = database_getval("name",filename);
-						database_setval(fileid,"server",servers.at(i));
-						database_setval(fileid,"location",server_ids.at(i));
-					}
-				}
-				pattern += "/*";
-			}   
+					//}
+					pattern += "/*";
+			//	}   
+		//	}
+		}
 
 
-			//glob_t files;
-			//glob((servers.at(i)+"/*.*").c_str(),0,NULL,&files);
-			//cout << "******************Listing down the files***************" << "\n";
-	//	}
+		//glob_t files;
+		//glob((servers.at(i)+"/*.*").c_str(),0,NULL,&files);
+		//cout << "******************Listing down the files***************" << "\n";
+		//	}
 		//log_msg("At the end of initialize\n");
 		return 0;
 	}
@@ -1165,7 +1174,7 @@ int khan_flush (const char * path, struct fuse_file_info * info ) {
 	string filename = basename(strdup(path));
 	string fileid=database_getval("name",filename);
 	string server=database_getval(fileid,"server");
-	process_file(server, fileid);
+	process_file(server, fileid, "");
 	return 0;
 }
 
@@ -1184,7 +1193,7 @@ int khan_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	}
 	string server = database_getval(fileid, "server");
 
-	process_file(server, fileid);
+	process_file(server, fileid, "");
 
 	map_path(resolve_selectors(path), fileid);
 
@@ -1418,11 +1427,11 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
 			khan_ops.fsetattr_x     = xmp_fsetattr_x;
 #endif
 
-//			Py_SetProgramName(argv[0]);  /* optional but recommended */
-//			Py_Initialize();
-//			PyObject *sys = PyImport_ImportModule("sys");
-//			PyObject *path = PyObject_GetAttrString(sys, "path");
-//			PyList_Append(path, PyString_FromString("."));
+			//			Py_SetProgramName(argv[0]);  /* optional but recommended */
+			//			Py_Initialize();
+			//			PyObject *sys = PyImport_ImportModule("sys");
+			//			PyObject *path = PyObject_GetAttrString(sys, "path");
+			//			PyList_Append(path, PyString_FromString("."));
 
 			int retval=0;
 			struct khan_param param = { 0, 0, NULL, 0 };
@@ -1475,6 +1484,11 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
 				//log_msg("Could not allocate memory to khan_data!..Aborting..!\n");
 				abort();
 			}
+
+			// Get the number of processors in this system
+			int iCPU = omp_get_num_procs();
+			// Now set the number of threads
+			omp_set_num_threads(iCPU);
 			if(initializing_khan(argv[1])<0)  {
 				//log_msg("Could not initialize khan..Aborting..!\n");
 				return -1;

@@ -14,7 +14,7 @@ link_directories(/opt/local/lib)
 link_directories(/net/hu21/agangil3/python/lib/python2.7)
 link_directories(/net/hu21/agangil3/hiredis)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -pg")
 set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -pg")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
 

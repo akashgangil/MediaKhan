@@ -14,7 +14,9 @@ parser.add_option("-t", type="int", dest="attr_num")
 #a = s.split("/")
 
 s = args[0]
+#print 'Path is ', s
 a = s.split("/")
+#print "Split ", a
 
 def S():
     for i in a:
@@ -37,10 +39,15 @@ def Velocity():
         return i.split(" ")[0]
 
 def Composition():
+#    print 'called composition'
+#    print a
     for i in a:
-      if 'S = ' in i:
-        return i.split(" ")[2]
-    return a[9]
+#      print i
+      if 'H2' in i:
+        return i
+      elif 'CH4' in i:
+        return i
+        
 
 def Phi():
     for i in a:

@@ -5,8 +5,10 @@
   #include "Python.h"
 #endif
 */
+
 #include "config.h"
 #include "params.h"
+#include <omp.h>
 #include <algorithm>
 #include <dirent.h>
 #include <dlfcn.h>
