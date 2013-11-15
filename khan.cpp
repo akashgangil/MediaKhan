@@ -308,7 +308,7 @@ int initializing_khan(char * mnt_dir) {
 		//string command = "find /net/hp100/ihpcae -type d | awk -F'/' '{print NF-1}' | sort -n | tail -1";
 
 		glob_t files;
-		string pattern="/net/hp100/ihpcae/*";
+		string pattern="/net/hu21/agangil3/data/*";
 		/*
 		   FILE* pipe = popen(command.c_str(), "r");
 		   if(!pipe) return -1; 
