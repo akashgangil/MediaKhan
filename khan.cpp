@@ -73,6 +73,7 @@ void process_transducers(string server) {
 		database_setval(line,"attrs","location");
 		database_setval("namegen","command","basename");
 		database_setval(line,"attrs","ext");
+    database_setval(line, "attrs", "experiment_id");
 		string ext=line;
 		getline(transducers_file,line);
 		const char *firstchar=line.c_str();
@@ -309,6 +310,8 @@ int initializing_khan(char * mnt_dir) {
 
 		glob_t files;
 		string pattern="/net/hu21/agangil3/data/*";
+    static int experiment_id = 0;
+    set<string> experiments;
 		/*
 		   FILE* pipe = popen(command.c_str(), "r");
 		   if(!pipe) return -1; 
@@ -329,9 +332,13 @@ int initializing_khan(char * mnt_dir) {
 						cout << "Globbing with pattern " << pattern + ".im7\n" << endl; 
 						glob((pattern +".im7").c_str(), 0, NULL, &files);
 						cout << "Glob buffer" << files.gl_pathc << "\n";
+            if(files.gl_pathc != 0 ) experiment_id++;
 						for(int j=0; j<files.gl_pathc; j++) {//for each file
 							string file_path = files.gl_pathv[j];
-							cout << "************File PATH : ***************" << file_path << "\n";
+              experiments.insert(file_path.substr(0, file_path.size()-11));
+							stringstream ss;
+              ss << experiments.size();
+              cout << "************File PATH : ***************" << file_path << "\n";
 							string ext = strrchr(file_path.c_str(),'.')+1;
 							string filename=strrchr(file_path.c_str(),'/')+1;
 							if(database_getval("name", filename) == "null" || 1) {
@@ -339,6 +346,7 @@ int initializing_khan(char * mnt_dir) {
 								database_setval(fileid,"ext",ext);
 								database_setval(fileid,"server",servers.at(i));
 								database_setval(fileid,"location",server_ids.at(i));
+                database_setval(fileid, "experiment_id", ss.str());
 								for(int k=0; k<server_ids.size(); k++) {
 									database_setval(fileid, server_ids.at(k), "0");
 								}
@@ -568,7 +576,10 @@ void dir_pop_buf(void* buf, fuse_fill_dir_t filler, string content, bool convert
 
 
 void populate_readdir_buffer(void* buf, fuse_fill_dir_t filler, stringstream &path) {
-	string attr, val, file, more;
+	
+  cout << "Populate Read Dir Buffer\n" << endl;
+  cout << "Path is " << path.str() << endl;
+  string attr, val, file, more;
 	string current_content = "none";
 	string current_attrs = "none";
 	void* aint=getline(path, attr, '/');
@@ -623,7 +634,9 @@ void populate_readdir_buffer(void* buf, fuse_fill_dir_t filler, stringstream &pa
 }
 
 static int xmp_readdir(const char *c_path, void *buf, fuse_fill_dir_t filler,off_t offset, struct fuse_file_info *fi) {
-	filler(buf, ".", NULL, 0);
+	
+  cout << "READ DIR" << endl;
+  filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
 	string pre_processed = c_path+1;
 	string after = resolve_selectors(pre_processed);
@@ -1379,10 +1392,45 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
 
 
 		void my_terminate(int param) {
-			chdir("/Users/drewbratcher/projects/mediakhan/");
+			chdir("/net/hu21/agangil3/Mediakhan/");
 			cout << "killing... " << flush << endl;
 			exit(1);
 		}
+
+    void analytics(void) {
+      string experiments =  database_getvals("experiment_id"); 
+      cout << "Experiment Id's" << experiments;
+      vector<string> experiment_list = split(experiments, ":");
+      FILE *stream;
+      for(int i=0; i<experiment_list.size(); ++i) {
+        cout << "Experiemnt Number " << experiment_list[i] << endl; 
+        string vals = database_getval("experiment_id", experiment_list[i]);
+        cout << "File Ids " << vals <<endl;
+        vector<string> exp_vec = split(vals, ":");
+        
+        string intensityframe1 = "";
+        string intensityframe2 = "";
+    
+        for(int k=0; k<exp_vec.size(); k++) {
+          intensityframe1 += database_getval(exp_vec[k], "IntensityFrame1") + " ";
+          intensityframe2 += database_getval(exp_vec[k], "IntensityFrame2") + " ";
+          //cout << intensityframe1 << endl;
+         //cout << intensityframe2 << endl;
+        }
+       
+        string intensity_vals = intensityframe1 + "i " + intensityframe2; 
+			 
+        string msg2="../python/bin/python graph.py -e " + experiment_list[i] + " -f 1 \"" + intensity_vals + "\"";
+  	  	cout << "========= issuing command =   " << msg2 <<endl;
+	    	stream=popen(msg2.c_str(),"r");
+        
+        string msg3="../python/bin/python graph.py -e " + experiment_list[i] + " -f 2 \"" + intensity_vals + "\"";
+  	  	cout << "========= issuing command =   " << msg3 <<endl;
+	    	stream=popen(msg3.c_str(),"r");
+      }
+
+      pclose(stream);
+    }
 
 		int main(int argc, char *argv[])
 		{
@@ -1486,14 +1534,17 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
 			}
 
 			// Get the number of processors in this system
-			int iCPU = omp_get_num_procs();
+		//	int iCPU = omp_get_num_procs();
 			// Now set the number of threads
-			omp_set_num_threads(iCPU);
+		//	omp_set_num_threads(iCPU);
 			if(initializing_khan(argv[1])<0)  {
 				//log_msg("Could not initialize khan..Aborting..!\n");
 				return -1;
 			}
-			rename_times.open(rename_times_file_name.c_str(), ofstream::out);
+			
+      analytics();      
+
+      rename_times.open(rename_times_file_name.c_str(), ofstream::out);
 			rename_times.precision(15);
 			start_times.open(start_times_file_name.c_str(), ofstream::out);
 			start_times.precision(15);
