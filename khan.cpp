@@ -106,6 +106,7 @@ void process_file(string server, string fileid, string file_path) {
 	string attrs=database_getval(ext,"attrs");
 	string token="";
 	stringstream ss2(attrs.c_str());
+  FILE* stream;
 	while(getline(ss2,token,':')){
 		if(strcmp(token.c_str(),"null")!=0){
 			if(token == "name") {
@@ -119,13 +120,14 @@ void process_file(string server, string fileid, string file_path) {
 			}
 			string msg2=(cmd+" \""+file_path+"\"").c_str();
 			cout << "========= issuing command =   " << msg2 <<endl;
-			FILE* stream=popen(msg2.c_str(),"r");
+			stream=popen(msg2.c_str(),"r");
 			if(fgets(msg,200,stream)!=0){
 				cout << "========= attr value =   " << msg <<endl;
 				database_setval(fileid,token,msg);
 			}
-			pclose(stream);
+      fflush(stream);
 		}
+			pclose(stream);
 	}
 }
 
