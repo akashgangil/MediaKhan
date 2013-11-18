@@ -1414,8 +1414,6 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
         for(int k=0; k<exp_vec.size(); k++) {
           intensityframe1 += database_getval(exp_vec[k], "IntensityFrame1") + " ";
           intensityframe2 += database_getval(exp_vec[k], "IntensityFrame2") + " ";
-          //cout << intensityframe1 << endl;
-         //cout << intensityframe2 << endl;
         }
        
         string intensity_vals = intensityframe1 + "i " + intensityframe2; 
@@ -1423,9 +1421,29 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
         string msg2="../python/bin/python graph.py -e " + experiment_list[i] + " -f 1 \"" + intensity_vals + "\"";
   	  	cout << "========= issuing command =   " << msg2 <<endl;
 	    	stream=popen(msg2.c_str(),"r");
-        
+      
+        string exp_dir = "/net/hu21/agangil3/experiments/";
+        string filename = "experiment_" + experiment_list[i] + "_graph.png"; 
+        if(database_getval("name", filename) == "null" || 1) {
+          string fileid = database_setval("null","name",filename);
+          database_setval(fileid,"ext","png");
+          database_setval(fileid,"server",exp_dir);
+          database_setval(fileid,"location",server_ids.at(0));
+          database_setval(fileid, "experiment_id", experiment_list[i]);
+        }
+
+        filename = "experiment_" + experiment_list[i] + "_stats.txt"; 
         string msg3="../python/bin/python graph.py -e " + experiment_list[i] + " -f 2 \"" + intensity_vals + "\"";
   	  	cout << "========= issuing command =   " << msg3 <<endl;
+  
+        if(database_getval("name", filename) == "null" || 1) {
+          string fileid = database_setval("null","name",filename);
+          database_setval(fileid,"ext","txt");
+          database_setval(fileid,"server",exp_dir);
+          database_setval(fileid,"location",server_ids.at(0));
+          database_setval(fileid, "experiment_id", experiment_list[i]);
+        }
+
 	    	stream=popen(msg3.c_str(),"r");
       }
 
