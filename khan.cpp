@@ -13,7 +13,6 @@
 
 
 
-
 //mkdir stats prints stats to stats file and console:
 string stats_file="./stats.txt";
 string rename_times_file_name="./rename_times.txt";
@@ -25,6 +24,9 @@ string this_server_id;
 //PyObject* cloud_interface;
 ofstream rename_times;
 ofstream start_times;
+
+void analytics(void);
+
 /*
    void cloud_upload(string path) {
    FILE* stream=popen(("id3convert -1 -2 '"+path+"'").c_str(),"r");
@@ -201,9 +203,9 @@ void unmounting(string mnt_dir) {
 	//log_msg("fusermount successful\n");
 }
 
-int initializing_khan(char * mnt_dir) {
+void* initializing_khan(void * mnt_dir) {
 	//log_msg("In initialize\n");
-	unmounting(mnt_dir);
+	unmounting((char *)mnt_dir);
 	//Opening root directory and creating if not present
 	//cout<<"khan_root[0] is "<<servers.at(0)<<endl;
 	if(NULL == opendir(servers.at(0).c_str()))  {
@@ -371,7 +373,8 @@ int initializing_khan(char * mnt_dir) {
 		//cout << "******************Listing down the files***************" << "\n";
 		//	}
 		//log_msg("At the end of initialize\n");
-		return 0;
+		analytics();
+    return 0;
 	}
 }
 
@@ -1557,12 +1560,21 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
 		//	int iCPU = omp_get_num_procs();
 			// Now set the number of threads
 		//	omp_set_num_threads(iCPU);
-			if(initializing_khan(argv[1])<0)  {
+	    cout << "Servers at 0  " << servers.at(0) << endl;		
+ 
+
+       
+      pthread_t khan_init_thread;
+      int init_result = pthread_create(&khan_init_thread, NULL, &initializing_khan, (void *)argv[1]);
+  
+      printf("Initializing khan dispatched in a new thread\n");
+  
+//      if(initializing_khan(argv[1]) != NULL) {
 				//log_msg("Could not initialize khan..Aborting..!\n");
-				return -1;
-			}
+	//			return -1;
+		//	}
 			
-      analytics();      
+    //  analytics();      
 
       rename_times.open(rename_times_file_name.c_str(), ofstream::out);
 			rename_times.precision(15);
