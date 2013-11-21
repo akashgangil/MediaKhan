@@ -1,2 +1,2 @@
 laptop
-/net/hp100/ihpcae laptop
+/net/hu21/agangil3/data laptop
