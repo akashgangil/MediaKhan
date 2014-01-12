@@ -1,10 +1,10 @@
-/*
+
 #ifdef APPLE
   #include "Python.h"
 #else
   #include "Python.h"
 #endif
-*/
+
 
 #include "config.h"
 #include "params.h"
@@ -17,8 +17,8 @@
 #include <fstream>
 #include <functional>
 #include <fuse.h>
-#include <fuse_lowlevel.h>
-#include <fuse_opt.h>
+#include <fuse/fuse_lowlevel.h>
+#include <fuse/fuse_opt.h>
 #include <glob.h>
 #include <iterator>
 #include <libgen.h>

@@ -5,7 +5,6 @@ include(CheckIncludeFiles)
 
 include_directories(/usr/local/include/)
 
-include_directories(../fuse-2.9.3/include)
 include_directories(..)
 include_directories(/net/hu21/agangil3/python/include/python2.7)
 
