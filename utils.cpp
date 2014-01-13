@@ -13,11 +13,9 @@
   }
 #endif
 
-int get_file_size(string file_name){
-  string tempbase = file_name;
-        string base=basename(strdup(tempbase.c_str()));
-  string path=append_path2(base);
+int get_file_size(string path){
   struct stat st;
+  cout << "Path: " << path << endl;
   stat(path.c_str(), &st);
   return st.st_size;
 }
@@ -132,6 +130,12 @@ char* append_path(const char * newp) {
 }
 
 char* append_path2(string newp) {
+
+string fid = database_getval("name", newp);
+string file_path = database_getval(fid, "file_path");
+
+return strdup(file_path.c_str());
+/*
   //get file from database
   //cout<<"in append_path2"<<endl;
   string fid=database_getval("name",newp);
@@ -152,8 +156,6 @@ char* append_path2(string newp) {
   }
   //append and return c_str
   return strdup((server+"/"+newp).c_str());
+*/
 }
-
-
-
 

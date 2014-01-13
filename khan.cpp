@@ -76,6 +76,7 @@ void process_transducers(string server) {
         database_setval("namegen","command","basename");
         database_setval(line,"attrs","ext");
         database_setval(line, "attrs", "experiment_id");
+        database_setval(line, "attrs", "file_path");
         string ext=line;
         getline(transducers_file,line);
         const char *firstchar=line.c_str();
@@ -350,6 +351,7 @@ void* initializing_khan(void * mnt_dir) {
                     database_setval(fileid,"server",servers.at(i));
                     database_setval(fileid,"location",server_ids.at(i));
                     database_setval(fileid, "experiment_id", ss.str());
+                    database_setval(fileid, "file_path", file_path);
                     for(int k=0; k<server_ids.size(); k++) {
                         database_setval(fileid, server_ids.at(k), "0");
                     }
@@ -516,7 +518,7 @@ int populate_getattr_buffer(struct stat* stbuf, stringstream &path) {
                             if(content_has(dir_content, fileid)) {
                                 if(!mint) {
                                     // /attr/val/file path
-                                    file_pop_stbuf(stbuf, file);
+                                    file_pop_stbuf(stbuf, fileid);
                                     return 0;
                                 }
                             } else if(content_has(attrs_content, file)) {
