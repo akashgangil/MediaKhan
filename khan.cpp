@@ -21,9 +21,12 @@ vector<string> servers;
 vector<string> server_ids;
 string this_server;
 string this_server_id;
+
 //PyObject* cloud_interface;
 ofstream rename_times;
 ofstream start_times;
+
+string mountpoint;
 
 void analytics(void);
 
@@ -374,7 +377,7 @@ void* initializing_khan(void * mnt_dir) {
 //cout << "******************Listing down the files***************" << "\n";
 //	}
 //log_msg("At the end of initialize\n");
-analytics();
+//analytics();
 return 0;
 }
 }
@@ -518,7 +521,8 @@ int populate_getattr_buffer(struct stat* stbuf, stringstream &path) {
                             if(content_has(dir_content, fileid)) {
                                 if(!mint) {
                                     // /attr/val/file path
-                                    file_pop_stbuf(stbuf, fileid);
+                                    string file_path = database_getval(fileid, "file_path");
+                                    file_pop_stbuf(stbuf, file_path);
                                     return 0;
                                 }
                             } else if(content_has(attrs_content, file)) {
@@ -1401,6 +1405,8 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
         static struct fuse_operations khan_ops;
 
         void my_terminate(int param) {
+            cout << "Unmounting: " << mountpoint<< endl;
+            unmounting(mountpoint);
             chdir("/net/hu21/agangil3/Mediakhan/");
             cout << "killing... " << flush << endl;
             exit(1);
@@ -1514,6 +1520,8 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
                 printf("Usage: ./khan <mount_dir_location> [stores.txt] [-d]\nAborting...\n");
                 exit(1);
             }
+
+            mountpoint = argv[1];
 
             struct fuse_args args = FUSE_ARGS_INIT(0, NULL);
             int j;
