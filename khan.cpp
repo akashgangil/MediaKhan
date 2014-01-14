@@ -110,11 +110,15 @@ void process_file(string server, string fileid, string file_path) {
     string ext = database_getval(fileid, "ext");
     file = server + "/" + file;
     string attrs=database_getval(ext,"attrs");
-    string token="";
-    stringstream ss2(attrs.c_str());
-    FILE* stream;
-    while(getline(ss2,token,':')){
-        if(strcmp(token.c_str(),"null")!=0){
+    if(attrs != "null"){
+      string token="";
+      stringstream ss2(attrs.c_str());
+       FILE* stream;
+        while(getline(ss2,token,':')){
+          if(strcmp(token.c_str(),"null")!=0){
+              
+            cout << " Token is: " << token << endl;      
+
             if(token == "name") {
                 continue;
             }
@@ -132,9 +136,10 @@ void process_file(string server, string fileid, string file_path) {
                 database_setval(fileid,token,msg);
             }
             fflush(stream);
+          }
+           pclose(stream);
         }
-        pclose(stream);
-    }
+   }
 }
 
 void map_path(string path, string fileid) {
@@ -377,7 +382,7 @@ void* initializing_khan(void * mnt_dir) {
 //cout << "******************Listing down the files***************" << "\n";
 //	}
 //log_msg("At the end of initialize\n");
-//analytics();
+analytics();
 return 0;
 }
 }
@@ -1201,7 +1206,10 @@ int khan_flush (const char * path, struct fuse_file_info * info ) {
     string filename = basename(strdup(path));
     string fileid=database_getval("name",filename);
     string server=database_getval(fileid,"server");
-    process_file(server, fileid, "");
+    string file_path = database_getval(fileid, "file_path");
+    cout << "FileName: " << filename << " FileId: " << fileid << " Server: " << server << endl;  
+
+    process_file(server, fileid, file_path);
     return 0;
 }
 
@@ -1418,7 +1426,7 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
             vector<string> experiment_list = split(experiments, ":");
             FILE *stream;
             for(int i=0; i<experiment_list.size(); ++i) {
-                cout << "Experiemnt Number " << experiment_list[i] << endl; 
+                cout << "Experiment Number " << experiment_list[i] << endl; 
                 string vals = database_getval("experiment_id", experiment_list[i]);
                 cout << "File Ids " << vals <<endl;
                 vector<string> exp_vec = split(vals, ":");
@@ -1442,7 +1450,8 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
                 if(database_getval("name", filename) == "null" || 1) {
                     string fileid = database_setval("null","name",filename);
                     database_setval(fileid,"ext","png");
-                    database_setval(fileid,"server",exp_dir);
+                    database_setval(fileid,"server",servers.at(0));
+                    database_setval(fileid,"file_path",exp_dir + filename);
                     database_setval(fileid,"location",server_ids.at(0));
                     database_setval(fileid, "experiment_id", experiment_list[i]);
                 }
@@ -1454,7 +1463,8 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
                 if(database_getval("name", filename) == "null" || 1) {
                     string fileid = database_setval("null","name",filename);
                     database_setval(fileid,"ext","txt");
-                    database_setval(fileid,"server",exp_dir);
+                    database_setval(fileid,"server",servers.at(0));
+                    database_setval(fileid,"file_path",exp_dir + filename);
                     database_setval(fileid,"location",server_ids.at(0));
                     database_setval(fileid, "experiment_id", experiment_list[i]);
                 }
@@ -1587,7 +1597,7 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
             //			return -1;
             //	}
 
-            //  analytics();      
+            //analytics();      
 
             rename_times.open(rename_times_file_name.c_str(), ofstream::out);
             rename_times.precision(15);
