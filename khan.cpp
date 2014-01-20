@@ -202,10 +202,11 @@ void unmounting(string mnt_dir) {
 #ifdef APPLE
     string command = "umount " + mnt_dir + "\n";
 #else
-    string command = "fusermount -u " + mnt_dir + "\n";
+    string command = "fusermount -zu " + mnt_dir + "\n";
 #endif
+    cout << "Command: " << command << endl;
     if (system(command.c_str()) < 0) {  
-        sprintf(msg,"Could not unmount mounted directory!\n");
+        printf("Could not unmount mounted directory!\n");
         //log_msg(msg);
         return;
     }
@@ -1535,7 +1536,7 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
 
             struct fuse_args args = FUSE_ARGS_INIT(0, NULL);
             int j;
-            const char* store_filename="stores.txt";
+            const char* store_filename="/net/hu21/agangil3/MediaKhan/stores.txt";
             for(j = 0; j < argc; j++) {
                 if((j == 2) && (argv[j][0]!='-')) {
                     store_filename = argv[j];
