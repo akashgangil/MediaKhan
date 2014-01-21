@@ -61,7 +61,7 @@ pclose(stream);
 
 void process_transducers(string server) {
 
-    cout << "Process Transducers\n";
+    log_msg("Process Transducers\n");
 
     if(server == "cloud") {
         return;
@@ -70,7 +70,7 @@ void process_transducers(string server) {
     ifstream transducers_file((server+"/transducers.txt").c_str());
     getline(transducers_file, line);
     while(transducers_file.good()){
-        cout << "=============== got type =   " << line <<endl;
+        log_msg("=============== got type =   \n");
         //add line to vold as file type
         database_setval("allfiles","types",line);
         database_setval(line,"attrs","name");
@@ -91,8 +91,8 @@ void process_transducers(string server) {
             getline(ss,attr,':');
             string command;
             getline(ss,command,':');
-            cout << "============ checking attr = "<<attr<<endl;
-            cout << "============ checking command = "<<command<<endl;
+            log_msg("============ checking attr = \n");
+            log_msg("============ checking command = \n");
             attr=trim(attr);
             database_setval(ext,"attrs",attr);
             database_setval(attr+"gen","command",command);
@@ -105,11 +105,12 @@ void process_transducers(string server) {
 /*processes files: issues the mp3info command for the file
   and fills in the values of the attributes*/
 void process_file(string server, string fileid, string file_path) {
-    printf("Inside the Process File \n");
+    log_msg("Inside the Process File \n");
     string file = database_getval(fileid, "name");
     string ext = database_getval(fileid, "ext");
     file = server + "/" + file;
     string attrs=database_getval(ext,"attrs");
+    char msg4[100];
     if(attrs != "null"){
       string token="";
       stringstream ss2(attrs.c_str());
@@ -117,23 +118,29 @@ void process_file(string server, string fileid, string file_path) {
         while(getline(ss2,token,':')){
           if(strcmp(token.c_str(),"null")!=0){
               
-            cout << " Token is: " << token << endl;      
+            log_msg(" Token is: \n");      
 
             if(token == "name") {
                 continue;
             }
-            cout << "========= looking at attr =   " << token <<endl;
+            sprintf(msg, "=== looking at attr === : %s\n", token.c_str());
+            log_msg(msg);
             string cmd=database_getval(token+"gen","command");
             if(cmd=="null") {
-                cout << "command is null, skipping" << endl;
+                log_msg("command is null, skipping\n");
                 continue;
             }
-            string msg2=(cmd+" \""+file_path+"\"").c_str();
-            cout << "========= issuing command =   " << msg2 <<endl;
+            string msg2=(cmd+" \""+file_path+"\"");
+            sprintf(msg, "=== issuing command ===: %s\n", msg2.c_str());
+            log_msg(msg);
             stream=popen(msg2.c_str(),"r");
-            if(fgets(msg,200,stream)!=0){
-                cout << "========= attr value =   " << msg <<endl;
-                database_setval(fileid,token,msg);
+          
+            if(fgets(msg4,200,stream)!=0){
+                
+                sprintf(msg, "=== attr value: %s\n", msg4);
+                log_msg(msg);
+
+                database_setval(fileid,token,msg4);
             }
             fflush(stream);
           }
@@ -198,38 +205,36 @@ void unmap_path(string path, string fileid) {
 
 /*unmount the fuse file system*/
 void unmounting(string mnt_dir) {
-    //log_msg("in umounting");
+    log_msg("in umounting\n");
 #ifdef APPLE
     string command = "umount " + mnt_dir + "\n";
 #else
     string command = "fusermount -zu " + mnt_dir + "\n";
 #endif
-    cout << "Command: " << command << endl;
     if (system(command.c_str()) < 0) {  
-        printf("Could not unmount mounted directory!\n");
-        //log_msg(msg);
+        log_msg("Could not unmount mounted directory!\n");
+        log_msg(msg);
         return;
     }
-    //log_msg("fusermount successful\n");
+    log_msg("fusermount successful\n");
 }
 
 void* initializing_khan(void * mnt_dir) {
-    //log_msg("In initialize\n");
-    printf("here we are getting it\n");
+    log_msg("In initialize\n");
     unmounting((char *)mnt_dir);
     //Opening root directory and creating if not present
     //cout<<"khan_root[0] is "<<servers.at(0)<<endl;
     if(NULL == opendir(servers.at(0).c_str()))  {
         sprintf(msg,"Error msg on opening directory : %s\n",strerror(errno));
-        //log_msg(msg);
-        //log_msg("Root directory might not exist..Creating\n");
+        log_msg(msg);
+        log_msg("Root directory might not exist..Creating\n");
         string command = "mkdir " + servers.at(0);
         if (system(command.c_str()) < 0) {
             log_msg("Unable to create storage directory...Aborting\n");
             exit(1);
         }
     } else {
-        fprintf(stderr, "directory opened successfully\n");
+        log_msg("directory opened successfully\n");
     }
 
     init_database();
@@ -243,19 +248,21 @@ void* initializing_khan(void * mnt_dir) {
     }
 
     //if we have not setup, do so now
-    //log_msg("it hasnt happened, setvalue then setup");
+    log_msg("it hasnt happened, setvalue then setup\n");
     database_setval("setup","value","true");
 
     //load metadata associatons
     for(int i=0; i<servers.size(); i++){
-        cout << "servers: " << servers.at(i) << "\n";
+        //log_msg("servers: " + servers.at(i) + "\n");
         process_transducers(servers.at(i));
     }
 
     //load metadata for each file on each server
     string types=database_getval("allfiles","types");
-    cout << "================= types to look for ="<<types<<endl;
-    cout << "Server Size" << servers.size() << endl;
+    sprintf(msg, "=== types to look for = %s\n", types.c_str());
+    log_msg(msg);   
+
+    //log_msg("Server Size" + servers.size() + "\n");
     for(int i=0; i<servers.size(); i++) {
         /*		if(servers.at(i) == "cloud") {
               cout << " Cloud \n";
@@ -316,13 +323,13 @@ void* initializing_khan(void * mnt_dir) {
         }
         } else {
         */
-        cout << "Not Cloud \n";
+        log_msg("Not Cloud \n");
 
         //			string command = "find -type d | awk -F'/' '{print NF-1}' | sort -n | tail -1";
         //string command = "find /net/hp100/ihpcae -type d | awk -F'/' '{print NF-1}' | sort -n | tail -1";
 
         glob_t files;
-        string pattern="/net/hu21/agangil3/data/*";
+        string pattern= servers.at(0) + "/*";
         static int experiment_id = 0;
         set<string> experiments;
         /*
@@ -342,16 +349,21 @@ void* initializing_khan(void * mnt_dir) {
         {  
             //#pragma omp task
             //				{
-            cout << "Globbing with pattern " << pattern + ".im7\n" << endl; 
+            sprintf(msg, "Globbing with pattern: %s .im7\n", pattern.c_str());
+            //log_msg("Globbing with pattern " + pattern + ".im7\n");
+            log_msg(msg); 
             glob((pattern +".im7").c_str(), 0, NULL, &files);
-            cout << "Glob buffer" << files.gl_pathc << "\n";
+           
+            sprintf(msg, "Glob Buffer: %d\n", files.gl_pathc); 
+            log_msg(msg);
+            //log_msg("Glob buffer" + files.gl_pathc + "\n");
             if(files.gl_pathc != 0 ) experiment_id++;
             for(int j=0; j<files.gl_pathc; j++) {//for each file
                 string file_path = files.gl_pathv[j];
                 experiments.insert(file_path.substr(0, file_path.size()-11));
                 stringstream ss;
                 ss << experiments.size();
-                cout << "************File PATH : ***************" << file_path << "\n";
+                sprintf(msg, "*** FILE Path *** %s\n", file_path.c_str());
                 string ext = strrchr(file_path.c_str(),'.')+1;
                 string filename=strrchr(file_path.c_str(),'/')+1;
                 if(database_getval("name", filename) == "null" || 1) {
@@ -382,7 +394,7 @@ void* initializing_khan(void * mnt_dir) {
 //glob((servers.at(i)+"/*.*").c_str(),0,NULL,&files);
 //cout << "******************Listing down the files***************" << "\n";
 //	}
-//log_msg("At the end of initialize\n");
+log_msg("At the end of initialize\n");
 analytics();
 return 0;
 }
@@ -597,8 +609,9 @@ void dir_pop_buf(void* buf, fuse_fill_dir_t filler, string content, bool convert
 
 void populate_readdir_buffer(void* buf, fuse_fill_dir_t filler, stringstream &path) {
 
-    cout << "Populate Read Dir Buffer\n" << endl;
-    cout << "Path is " << path.str() << endl;
+    log_msg("Populate Read Dir Buffer\n");
+    sprintf(msg, "Path is %s\n", path.str().c_str());
+    log_msg(msg);
     string attr, val, file, more;
     string current_content = "none";
     string current_attrs = "none";
@@ -655,7 +668,8 @@ void populate_readdir_buffer(void* buf, fuse_fill_dir_t filler, stringstream &pa
 
 static int xmp_readdir(const char *c_path, void *buf, fuse_fill_dir_t filler,off_t offset, struct fuse_file_info *fi) {
 
-    cout << "READ DIR" << endl;
+    sprintf(msg, "Khan Read directory: %s\n", c_path);
+    log_msg(msg);
     filler(buf, ".", NULL, 0);
     filler(buf, "..", NULL, 0);
     string pre_processed = c_path+1;
@@ -666,6 +680,8 @@ static int xmp_readdir(const char *c_path, void *buf, fuse_fill_dir_t filler,off
 }
 
 int khan_open(const char *path, struct fuse_file_info *fi) {
+    sprintf(msg, "Khan Open directory %s\n ", path);
+    log_msg(msg);
     int retstat = 0;
     int fd;
     path = basename(strdup(path));
@@ -688,13 +704,16 @@ int khan_open(const char *path, struct fuse_file_info *fi) {
 
 int xmp_access(const char *path, int mask)
 {
+
+    sprintf(msg, "Khan Access: %s", path);
+    log_msg(msg);
     char *path_copy=strdup(path);
     if(strcmp(path,"/")==0) {
-        //log_msg("at root");
+        log_msg("at root");
         return 0;
     }
     //  if(strcmp(path,"/")==0) {
-    log_msg("at root");
+    log_msg("at root\n");
     return 0;
     //  }
 
@@ -811,11 +830,11 @@ int xmp_access(const char *path, int mask)
 
 
 static int xmp_mknod(const char *path, mode_t mode, dev_t rdev) {
-    //log_msg("in xmp_mknod");
+    log_msg("in xmp_mknod\n");
 
     path=append_path2(basename(strdup(path)));
     sprintf(msg,"khan_mknod, path=%s\n",path);
-    //log_msg(msg);
+    log_msg(msg);
     int res;
     if (S_ISFIFO(mode))
         res = mkfifo(path, mode);
@@ -831,6 +850,8 @@ static int xmp_mknod(const char *path, mode_t mode, dev_t rdev) {
 
 static int xmp_mkdir(const char *path, mode_t mode) {
     struct timespec mkdir_start, mkdir_stop;
+    sprintf(msg, "Khan mkdir: %s\n", path);
+    log_msg(msg);
     string strpath=path;
     if(strpath.find("localize")!=string::npos) {
         if(strpath.find("usage")!=string::npos) {
@@ -918,25 +939,26 @@ static int xmp_mkdir(const char *path, mode_t mode) {
         return -1;
     }
 
-    //log_msg("xmp_mkdir");
+    log_msg("xmp_mkdir\n");
     sprintf(msg,"khan_mkdir for path=%s\n",path);
-    //log_msg(msg);
+    log_msg(msg);
     struct stat *st;
     if(khan_getattr(path, st)<0) {
         //add path
         database_setval("alldirs","paths",path);
         //and break into attr/val pair and add to vold
     } else {
-        //log_msg("Directory exists\n");
+        log_msg("Directory exists\n");
     }
     return 0;
 }
 
 
 static int xmp_readlink(const char *path, char *buf, size_t size) {
-    //log_msg("xmp_readlink");
+    sprintf(msg, "Khan Read Link: %s\n", path);
+    log_msg(msg);
     //TODO: handle in vold somehow
-    //log_msg("In readlink\n");
+    log_msg("In readlink\n");
     int res = -1;
     path=append_path2(basename(strdup(path)));
     //res = readlink(path, buf, size - 1);
@@ -948,7 +970,8 @@ static int xmp_readlink(const char *path, char *buf, size_t size) {
 
 
 static int xmp_unlink(const char *path) {
-    //log_msg("in xmp_unlink");
+    sprintf(msg, "Khan Unlink Directory: %s", path);
+    log_msg(msg);
     //TODO: handle in vold somehow
     int res;
     string fileid=database_getval("name",basename(strdup(path)));
@@ -985,6 +1008,8 @@ static int xmp_unlink(const char *path) {
 
 
 static int xmp_rmdir(const char *path) {
+    sprintf(msg, "Khan Remove Directory: %s\n", path);
+    log_msg(msg);
     //if hardcoded, just remove
     database_remove_val("alldirs","paths",path);
 
@@ -998,13 +1023,14 @@ static int xmp_rmdir(const char *path) {
 }
 
 static int xmp_symlink(const char *from, const char *to) {
-    //log_msg("in xmp_symlink");
+    sprintf(msg, "Khan Sym Link Directory From: %s  To: %s", from, to);
+    log_msg(msg);
     //TODO: handle in vold somehow
     int res=-1;
     from=append_path2(basename(strdup(from)));
     to=append_path2(basename(strdup(to)));
     sprintf(msg,"In symlink creating a symbolic link from %s to %s\n",from, to);
-    //log_msg(msg);
+    log_msg(msg);
     //res = symlink(from, to);
     if (res == -1)
         return -errno;
@@ -1012,6 +1038,8 @@ static int xmp_symlink(const char *from, const char *to) {
 }
 
 static int xmp_rename(const char *from, const char *to) {
+    sprintf(msg, "Khan Rename Directory From: %s To: %s", from , to);
+    log_msg(msg);
     //cout << endl << endl << endl << "Entering Rename Function" << endl;
     double start_time = 0;
     struct timeval start_tv;
@@ -1055,24 +1083,26 @@ static int xmp_rename(const char *from, const char *to) {
 }
 
 static int xmp_link(const char *from, const char *to) {
-    //log_msg("in xmp_link");
+    sprintf(msg, "Khan Link: From: %s To: %s\n", from , to);
+    log_msg(msg);
     //TODO:handle in vold somehow...
     int retstat = 0;
     from=append_path2(basename(strdup(from)));
     to=append_path2(basename(strdup(to)));
     sprintf(msg,"khan_link initial path=\"%s\", initial to=\"%s\")\n",from, to);
-    //log_msg(msg);
+    log_msg(msg);
     retstat = link(from,to);
     return retstat;
 }
 
 static int xmp_chmod(const char *path, mode_t mode) {
-    //log_msg("in xmp_chmod");
+    sprintf(msg, "Khan Chmod Directory: %s\n", path);
+    log_msg(msg);
 
     int res;
     path=append_path2(basename(strdup(path)));
     sprintf(msg, "In chmod for: %s\n",path);
-    //log_msg(msg);
+    log_msg(msg);
     res = chmod(path, mode);
 #ifdef APPLE
     res = chmod(path, mode);
@@ -1085,11 +1115,12 @@ static int xmp_chmod(const char *path, mode_t mode) {
 }
 
 static int xmp_chown(const char *path, uid_t uid, gid_t gid) {
-    //log_msg("in xmp_chown");
+    sprintf(msg, "Khan Chown Directory: %s\n", path);
+    log_msg(msg);
     int res;
     path=append_path2(basename(strdup(path)));
     sprintf(msg,"In chown for : %s\n",path);
-    //log_msg(msg);
+    log_msg(msg);
     res = lchown(path,uid, gid);
     if (res == -1)
         return -errno;
@@ -1098,7 +1129,8 @@ static int xmp_chown(const char *path, uid_t uid, gid_t gid) {
 
 static int xmp_truncate(const char *path, off_t size) {
     //update for vold?
-    //log_msg("In xmp_truncate\n");
+    sprintf(msg, "Khan Truncate Directory: %s", path);
+    log_msg(msg);
     int res;
     path++;
     res = truncate(path, size);
@@ -1108,12 +1140,12 @@ static int xmp_truncate(const char *path, off_t size) {
 }
 
 static int xmp_utimens(const char *path, const struct timespec ts[2]) {
-    //log_msg("in utimens");
+    log_msg("in utimens\n");
     int res;
     struct timeval tv[2];
     path=append_path2(basename(strdup(path)));
     sprintf(msg,"in utimens for path : %s\n",path);
-    //log_msg(msg);
+    log_msg(msg);
     tv[0].tv_sec = ts[0].tv_sec;
     tv[0].tv_usec = ts[0].tv_nsec / 1000;
     tv[1].tv_sec = ts[1].tv_sec;
@@ -1126,6 +1158,8 @@ static int xmp_utimens(const char *path, const struct timespec ts[2]) {
 
 static int xmp_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
     int res = 0;
+    sprintf(msg, "Khan xmp_read: %s", path);
+    log_msg(msg);
     path=append_path2(basename(strdup(path)));
     //cout<<"Converted Path: "<<path<<endl<<endl<<endl<<endl;
 
@@ -1145,7 +1179,8 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset, stru
 }
 
 static int xmp_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
-    //log_msg("in xmp_write");
+    sprintf(msg, "Khan xmp_write: %s\n", path);
+    log_msg(msg);
     int fd;
     int res;
 
@@ -1164,6 +1199,8 @@ static int xmp_write(const char *path, const char *buf, size_t size, off_t offse
 
 static int xmp_statfs(const char *path, struct statvfs *stbuf) {
     /* Pass the call through to the underlying system which has the media. */
+    sprintf(msg, "Khan xmp_statfs: %s\n", path);
+    log_msg(msg);
     int res = statvfs(path, stbuf);
     if (res != 0) {
         fprintf(log, "statfs error for %s\n",path);
@@ -1187,16 +1224,16 @@ static int xmp_fsync(const char *path, int isdatasync,struct fuse_file_info *fi)
 
 void *khan_init(struct fuse_conn_info *conn) {
 
-    //log_msg("khan_init() called!\n");
+    log_msg("khan_init() called!\n");
     sprintf(msg,"khan_root is : %s\n",servers.at(0).c_str());
-    //log_msg(msg);
+    log_msg(msg);
     if(chdir(servers.at(0).c_str())<0) {
         sprintf(msg,"could not change directory ,errno %s\n",strerror(errno)); 
-        //log_msg(msg);
+        log_msg(msg);
         perror(servers.at(0).c_str());
     }
     sprintf(msg,"AT THE END OF INIT\n"); 
-    //log_msg(msg);
+    log_msg(msg);
     return KHAN_DATA;
 }
 
@@ -1204,11 +1241,13 @@ void *khan_init(struct fuse_conn_info *conn) {
 
 int khan_flush (const char * path, struct fuse_file_info * info ) {
     //cout << "=============IN KHAN FLUSH!!!!!!!!" << endl << endl;
+    
+    sprintf(msg, "Khan flush: %s\n", path);
+    log_msg(msg);
     string filename = basename(strdup(path));
     string fileid=database_getval("name",filename);
     string server=database_getval(fileid,"server");
     string file_path = database_getval(fileid, "file_path");
-    cout << "FileName: " << filename << " FileId: " << fileid << " Server: " << server << endl;  
 
     process_file(server, fileid, file_path);
     return 0;
@@ -1218,6 +1257,9 @@ int khan_flush (const char * path, struct fuse_file_info * info ) {
 int khan_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
     create_calls++;
+    
+    sprintf(msg, "Khan xmp_create: %s\n", path);
+    log_msg(msg);
 
     string fileid=database_getval("name",basename(strdup(path)));
     if(strcmp(fileid.c_str(),"null")==0){
@@ -1260,10 +1302,9 @@ string hex2bin(string in) {
 
 int khan_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *fi)
 {
-    //log_msg("in khan_fgetattr");
-
     int retstat = 0;
     sprintf(msg,"khan_fgetattr(path=%s \n",path);
+    log_msg(msg);
     retstat = fstat(fi->fh, statbuf);
     return retstat;
 }
@@ -1273,11 +1314,13 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
     static int xmp_setxattr(const char *path, const char *name, const char *value,  size_t size, int flags) {
 #endif
         string attr = bin2hex(value, size);
-        fprintf(stderr, "setxattr call\npath:%sname:%svalue:%s\n\n\n\n\n\n\n\n\n\n", path, name, value);
+        sprintf(msg, "setxattr call\npath:%sname:%svalue:%s\n\n\n\n\n\n\n\n\n\n", path, name, value);
+        log_msg(msg);
         string xpath = "xattr:";
         xpath += path;
         redis_setval(xpath, name, attr.c_str());
-        fprintf(stderr, "setxattr call\n %s, %s, %s\n\n\n\n\n\n\n\n\n\n", xpath.c_str(), name, attr.c_str());
+        sprintf(msg, "setxattr call\n %s, %s, %s\n\n\n\n\n\n\n\n\n\n", xpath.c_str(), name, attr.c_str());
+        log_msg(msg);
         return 0;
     }
 #ifdef APPLE
@@ -1289,7 +1332,8 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
             string xpath = "xattr:";
             xpath += path;
             string db_val = redis_getval( xpath, name);
-            fprintf(stderr, "getxattr call\npath:%s\nname:%s\nvalue:%s\nsize:%zd\n\n\n\n\n", xpath.c_str(), name, db_val.c_str(), size);
+            sprintf(msg, "getxattr call\npath:%s\nname:%s\nvalue:%s\nsize:%zd\n\n\n\n\n", xpath.c_str(), name, db_val.c_str(), size);
+            log_msg(msg);
             if(db_val != "null") {
                 db_val = hex2bin(db_val);
                 if(value==NULL) {
@@ -1298,7 +1342,8 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
                 }
                 memcpy(value, db_val.c_str(), size);
                 size_t num = snprintf(value, size, "%s", db_val.c_str());
-                fprintf(stderr, "returned\nstring:%s\ncount:%zd\n\n", value, num);
+                sprintf(msg, "returned\nstring:%s\ncount:%zd\n\n", value, num);
+                log_msg(msg);
                 errno = 0;
                 return size;
             }
@@ -1307,7 +1352,8 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
         }
 
         static int xmp_listxattr(const char *path, char *list, size_t size) {
-            fprintf(stderr, "listxattr call\n %s, %s\n\n", path, list);
+            sprintf(msg, "listxattr call\n %s, %s\n\n", path, list);
+            log_msg(msg);
             string xpath = "xattr:";
             xpath += path;
             string attrs = database_getvals(xpath);
@@ -1321,11 +1367,13 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
                 }
             }
             if(list==NULL) {
-                fprintf(stderr, "returning %d\n", str_size);
+                sprintf(msg, "returning %d\n", str_size);
+                log_msg(msg);
                 return str_size;
             }
             snprintf(list, size, "%s", attrs.c_str());
-            fprintf(stderr, "returning %s and %d\n", list, count);
+            sprintf(msg, "returning %s and %d\n", list, count);
+            log_msg(msg);
             return count;
         }
 
@@ -1399,7 +1447,8 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
 
         static int khan_process_arg(void *data, const char *arg, int key, struct fuse_args *outargs) {
             struct khan_param *param = (struct khan_param*)data;
-            fprintf(stderr,"param.dev_name : %s\n",param->dev_name);
+            sprintf(msg,"param.dev_name : %s\n",param->dev_name);
+            log_msg(msg);
             (void)outargs;
             (void)arg;
             switch (key) {
@@ -1414,22 +1463,27 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
         static struct fuse_operations khan_ops;
 
         void my_terminate(int param) {
-            cout << "Unmounting: " << mountpoint<< endl;
+            sprintf(msg, "Unmounting: %s\n", mountpoint.c_str());
+            log_msg(msg);          
             unmounting(mountpoint);
             chdir("/net/hu21/agangil3/Mediakhan/");
+            log_msg("killing...\n ");
             cout << "killing... " << flush << endl;
             exit(1);
         }
 
         void analytics(void) {
             string experiments =  database_getvals("experiment_id"); 
-            cout << "Experiment Id's" << experiments;
+            sprintf(msg, "Experiment Id's: %s\n", experiments.c_str());
+            log_msg(msg);
             vector<string> experiment_list = split(experiments, ":");
             FILE *stream;
             for(int i=0; i<experiment_list.size(); ++i) {
-                cout << "Experiment Number " << experiment_list[i] << endl; 
+                sprintf(msg, "Experiment Number: %s\n", experiment_list[i].c_str());
+                log_msg(msg);
                 string vals = database_getval("experiment_id", experiment_list[i]);
-                cout << "File Ids " << vals <<endl;
+                sprintf(msg, "File Ids: %s\n", vals.c_str());
+                log_msg(msg);
                 vector<string> exp_vec = split(vals, ":");
 
                 string intensityframe1 = "";
@@ -1442,8 +1496,9 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
 
                 string intensity_vals = intensityframe1 + "i " + intensityframe2; 
 
-                string msg2="../python/bin/python graph.py -e " + experiment_list[i] + " -f 1 \"" + intensity_vals + "\"";
-                cout << "========= issuing command =   " << msg2 <<endl;
+                string msg2="../python/bin/python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 1 \"" + intensity_vals + "\"";
+                sprintf(msg, "===Issuing Command =  %s\n", msg2.c_str());
+                log_msg(msg);
                 stream=popen(msg2.c_str(),"r");
 
                 string exp_dir = "/net/hu21/agangil3/experiments/";
@@ -1458,8 +1513,9 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
                 }
 
                 filename = "experiment_" + experiment_list[i] + "_stats.txt"; 
-                string msg3="../python/bin/python graph.py -e " + experiment_list[i] + " -f 2 \"" + intensity_vals + "\"";
-                cout << "========= issuing command =   " << msg3 <<endl;
+                string msg3="../python/bin/python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 2 \"" + intensity_vals + "\"";
+                sprintf(msg, "=== Issuing Command === %s\n", msg3.c_str());
+                log_msg(msg);
 
                 if(database_getval("name", filename) == "null" || 1) {
                     string fileid = database_setval("null","name",filename);
@@ -1573,12 +1629,12 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
             fclose(stores);
             umask(0);
             if(-1==log_open()) {
-                printf("Unable to open the log file..NO log would be recorded..!\n");
+                log_msg("Unable to open the log file..NO log would be recorded..!\n");
             }
-            //log_msg("\n\n--------------------------------------------------------\n");
+            log_msg("\n\n--------------------------------------------------------\n");
             khan_data = (khan_state*)calloc(sizeof(struct khan_state), 1);
             if (khan_data == NULL)  {
-                //log_msg("Could not allocate memory to khan_data!..Aborting..!\n");
+                log_msg("Could not allocate memory to khan_data!..Aborting..!\n");
                 abort();
             }
 
@@ -1586,15 +1642,16 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
             //	int iCPU = omp_get_num_procs();
             // Now set the number of threads
             //	omp_set_num_threads(iCPU);
-            cout << "Servers at 0  " << servers.at(0) << endl;		
+            sprintf(msg, "Servers at 0: %s\n", servers.at(0).c_str());
+            log_msg(msg);
 
             pthread_t khan_init_thread;
             int init_result = pthread_create(&khan_init_thread, NULL, &initializing_khan, (void *)argv[1]);
 
-            printf("Initializing khan dispatched in a new thread\n");
+            log_msg("Initializing khan dispatched in a new thread\n");
 
             //      if(initializing_khan(argv[1]) != NULL) {
-            //log_msg("Could not initialize khan..Aborting..!\n");
+            log_msg("Could not initialize khan..Aborting..!\n");
             //			return -1;
             //	}
 
@@ -1604,8 +1661,8 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
             rename_times.precision(15);
             start_times.open(start_times_file_name.c_str(), ofstream::out);
             start_times.precision(15);
-            //log_msg("initialized....")
+            log_msg("initialized....\n");
             retval=fuse_main(args.argc,args.argv, &khan_ops, khan_data);
-            //log_msg("Done with fuse_main...\n");
+            log_msg("Done with fuse_main...\n");
             return retval;
         }

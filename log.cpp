@@ -10,6 +10,7 @@
 
 static int openFile = 0;
 FILE *fileDescriptor = NULL;
+static const char* LOGDIR = "/net/hu21/agangil3/KhanLogs/";
 
 char buf[80];
 
@@ -24,7 +25,7 @@ char* currentDateTime() {
 
 int log_open() {
     char logFile[100];
-    sprintf(logFile, "khanlog-%s.log",currentDateTime());
+    sprintf(logFile, "%skhanlog-%s.log",LOGDIR, currentDateTime());
     printf("Log File Location: %s\n", logFile);
     fileDescriptor = fopen(logFile,"w");
     
@@ -38,9 +39,9 @@ int log_open() {
 }
 
 void log_msg(const char *msg) {
-    fprintf(stderr, "%s\n", msg);
+    fprintf(stderr, "[%s]  %s\n", currentDateTime(), msg);
     fflush(stderr);
-    fprintf(fileDescriptor, "%s\n",msg);
+    fprintf(fileDescriptor, "[%s] %s\n", currentDateTime(), msg);
     fflush(fileDescriptor);
 }
 
