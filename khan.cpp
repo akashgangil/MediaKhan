@@ -223,6 +223,8 @@ void* initializing_khan(void * mnt_dir) {
     log_msg("In initialize\n");
     unmounting((char *)mnt_dir);
     //Opening root directory and creating if not present
+    sprintf(msg, "khan_root[0] is %s\n", servers.at(0).c_str());
+    log_msg(msg);
     //cout<<"khan_root[0] is "<<servers.at(0)<<endl;
     if(NULL == opendir(servers.at(0).c_str()))  {
         sprintf(msg,"Error msg on opening directory : %s\n",strerror(errno));
