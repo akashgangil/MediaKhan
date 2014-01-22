@@ -597,10 +597,18 @@ static int khan_getattr(const char *c_path, struct stat *stbuf) {
 }
 
 void dir_pop_buf(void* buf, fuse_fill_dir_t filler, string content, bool convert) {
+
+    sprintf(msg, "Inside dir_pop_buf: %s\n", content);
+    log_msg(msg);
+
     vector<string> contents = split(content, ":");
     for(int i=0; i<contents.size(); i++) {
         if(convert) {
             string filename = database_getval(contents[i].c_str(), "name");
+            
+            sprintf(msg, "dir_pop_buf loop%s\n", filename);
+            log_msg(msg);
+
             filler(buf, filename.c_str(), NULL, 0);
         } else {
             filler(buf, contents[i].c_str(), NULL, 0);
@@ -651,7 +659,8 @@ void populate_readdir_buffer(void* buf, fuse_fill_dir_t filler, stringstream &pa
                             }
                         } else {
                             // /attr/val dir
-                            fprintf(stderr, "%s, %s\n\n\n\n\n\n", attrs_content.c_str(), current_attrs.c_str());
+                            sprintf(msg, "%s, %s\n\n\n\n\n\n", attrs_content.c_str(), current_attrs.c_str());
+                            log_msg(msg);
                             attrs_content = subtract(attrs_content, current_attrs);
                             dir_pop_buf(buf, filler, dir_content, true);
                             dir_pop_buf(buf, filler, attrs_content, false);
