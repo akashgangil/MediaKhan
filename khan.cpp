@@ -67,7 +67,7 @@ void process_transducers(string server) {
         return;
     }
     string line;
-    ifstream transducers_file((server+"/transducers.txt").c_str());
+    ifstream transducers_file(("/net/hu21/agangil3/KhanScripts/transducers.txt"));
     getline(transducers_file, line);
     while(transducers_file.good()){
         log_msg("=============== got type =   \n");
@@ -221,7 +221,7 @@ void unmounting(string mnt_dir) {
 
 void* initializing_khan(void * mnt_dir) {
     log_msg("In initialize\n");
-    unmounting((char *)mnt_dir);
+    //unmounting((char *)mnt_dir);
     //Opening root directory and creating if not present
     sprintf(msg, "khan_root[0] is %s\n", servers.at(0).c_str());
     log_msg(msg);
@@ -598,7 +598,7 @@ static int khan_getattr(const char *c_path, struct stat *stbuf) {
 
 void dir_pop_buf(void* buf, fuse_fill_dir_t filler, string content, bool convert) {
 
-    sprintf(msg, "Inside dir_pop_buf: %s\n", content);
+    sprintf(msg, "Inside dir_pop_buf: %s\n", content.c_str());
     log_msg(msg);
 
     vector<string> contents = split(content, ":");
@@ -606,7 +606,7 @@ void dir_pop_buf(void* buf, fuse_fill_dir_t filler, string content, bool convert
         if(convert) {
             string filename = database_getval(contents[i].c_str(), "name");
             
-            sprintf(msg, "dir_pop_buf loop%s\n", filename);
+            sprintf(msg, "dir_pop_buf loop%s\n", filename.c_str());
             log_msg(msg);
 
             filler(buf, filename.c_str(), NULL, 0);
@@ -1490,6 +1490,8 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
             vector<string> experiment_list = split(experiments, ":");
             FILE *stream;
             for(int i=0; i<experiment_list.size(); ++i) {
+                if(experiment_list[i] != "null") 
+                {
                 sprintf(msg, "Experiment Number: %s\n", experiment_list[i].c_str());
                 log_msg(msg);
                 string vals = database_getval("experiment_id", experiment_list[i]);
@@ -1504,15 +1506,29 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
                     intensityframe1 += database_getval(exp_vec[k], "IntensityFrame1") + " ";
                     intensityframe2 += database_getval(exp_vec[k], "IntensityFrame2") + " ";
                 }
+                string exp_dir = "/net/hu21/agangil3/experiments/";
 
                 string intensity_vals = intensityframe1 + "i " + intensityframe2; 
 
-                string msg2="../python/bin/python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 1 \"" + intensity_vals + "\"";
+
+                string msg2="/net/hu21/agangil3/python/bin/python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 1 \"" + intensity_vals + "\"";
                 sprintf(msg, "===Issuing Command =  %s\n", msg2.c_str());
                 log_msg(msg);
-                stream=popen(msg2.c_str(),"r");
 
-                string exp_dir = "/net/hu21/agangil3/experiments/";
+                int process1 = system(msg2.c_str());
+
+                cout << "Graph plotted for  " << experiment_list[i] << " Returned: " << process1 << endl;
+
+/*                
+                FILE* stream1=popen(msg2.c_str(),"r");
+                if(stream == NULL){
+                  log_msg("python graph script failed\n");
+                }
+
+                if(pclose(stream1) == -1){
+                  log_msg("pipe not closed\n");
+                }
+   */             
                 string filename = "experiment_" + experiment_list[i] + "_graph.png"; 
                 if(database_getval("name", filename) == "null" || 1) {
                     string fileid = database_setval("null","name",filename);
@@ -1522,14 +1538,20 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
                     database_setval(fileid,"location",server_ids.at(0));
                     database_setval(fileid, "experiment_id", experiment_list[i]);
                 }
+          
+
 
                 filename = "experiment_" + experiment_list[i] + "_stats.txt"; 
-                string msg3="../python/bin/python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 2 \"" + intensity_vals + "\"";
+                string msg3="/net/hu21/agangil3/python/bin/python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 2 \"" + intensity_vals + "\"";
+                
+               // FILE* stream=popen(msg3.c_str(),"r");
+                cout << system(msg3.c_str());
                 sprintf(msg, "=== Issuing Command === %s\n", msg3.c_str());
                 log_msg(msg);
 
                 if(database_getval("name", filename) == "null" || 1) {
                     string fileid = database_setval("null","name",filename);
+                     cout << "File ID!!! " << fileid;
                     database_setval(fileid,"ext","txt");
                     database_setval(fileid,"server",servers.at(0));
                     database_setval(fileid,"file_path",exp_dir + filename);
@@ -1537,10 +1559,8 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
                     database_setval(fileid, "experiment_id", experiment_list[i]);
                 }
 
-                stream=popen(msg3.c_str(),"r");
             }
-
-            pclose(stream);
+          }                //pclose(stream);
         }
 
         int main(int argc, char *argv[])
