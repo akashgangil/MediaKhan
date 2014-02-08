@@ -11,8 +11,6 @@
 
 #define log stderr
 
-
-
 //mkdir stats prints stats to stats file and console:
 string stats_file="./stats.txt";
 string rename_times_file_name="./rename_times.txt";
@@ -29,7 +27,7 @@ ofstream start_times;
 string mountpoint;
 
 void analytics(void);
-
+string call_pyfunc(string script_name, string func_name, string file_path);
 /*
    void cloud_upload(string path) {
    FILE* stream=popen(("id3convert -1 -2 '"+path+"'").c_str(),"r");
@@ -58,6 +56,51 @@ FILE* stream=popen(("id3convert -1 '"+path+"'").c_str(),"r");
 pclose(stream);
 }
 */
+
+string call_pyfunc(string script_name, string func_name, string file_path){
+
+    string result;  
+
+    PyObject *pName, *pModule, *pDict, *pValue, *pArgs, *pClass, *pInstance;
+
+    PyObject *pFile;
+
+    pName = PyString_FromString(script_name.c_str());
+    pModule = PyImport_Import(pName);
+
+    pDict = PyModule_GetDict(pModule);
+    pClass = PyDict_GetItemString(pDict, script_name.c_str());
+
+    if (PyCallable_Check(pClass)) 
+    {   
+        pFile = PyString_FromString(file_path.c_str());
+        pArgs = PyTuple_New(1);
+        PyTuple_SetItem(pArgs, 0, pFile);
+        pInstance = PyObject_CallObject(pClass, pArgs);
+    }   
+
+    pValue = PyObject_CallMethod(pInstance, strdup(func_name.c_str()), NULL); 
+
+    if(pValue != NULL)
+    {   
+        result = PyString_AsString(pValue);
+        Py_DECREF(pValue);
+    }   
+    else {
+        PyErr_Print();
+    }   
+
+    // Clean up
+    /*Py_DECREF(pModule);
+    Py_DECREF(pValue);
+    Py_DECREF(pFile);
+    Py_DECREF(pArgs);
+    Py_DECREF(pClass);
+    Py_DECREF(pInstance);
+    */
+    return result;
+}
+
 
 void process_transducers(string server) {
 
@@ -110,43 +153,51 @@ void process_file(string server, string fileid, string file_path) {
     string ext = database_getval(fileid, "ext");
     file = server + "/" + file;
     string attrs=database_getval(ext,"attrs");
+
+    cout << "Attrs   :" << attrs << endl;  
+
     char msg4[100];
     if(attrs != "null"){
-      string token="";
-      stringstream ss2(attrs.c_str());
-       FILE* stream;
+        string token="";
+        stringstream ss2(attrs.c_str());
+//        FILE* stream;
         while(getline(ss2,token,':')){
-          if(strcmp(token.c_str(),"null")!=0){
-              
-            log_msg(" Token is: \n");      
+            if(strcmp(token.c_str(),"null")!=0){
 
-            if(token == "name") {
-                continue;
-            }
-            sprintf(msg, "=== looking at attr === : %s\n", token.c_str());
-            log_msg(msg);
-            string cmd=database_getval(token+"gen","command");
-            if(cmd=="null") {
-                log_msg("command is null, skipping\n");
-                continue;
-            }
-            string msg2=(cmd+" \""+file_path+"\"");
-            sprintf(msg, "=== issuing command ===: %s\n", msg2.c_str());
-            log_msg(msg);
-            stream=popen(msg2.c_str(),"r");
-          
-            if(fgets(msg4,200,stream)!=0){
-                
-                sprintf(msg, "=== attr value: %s\n", msg4);
+                sprintf(msg, "=== looking at attr === : %s\n", token.c_str());
                 log_msg(msg);
+                
+                if(token == "name" || token == "ext" || token == "location" || token == "experiemnt_id" || token == "file_path") {
+                    continue;
+                }
 
-                database_setval(fileid,token,msg4);
+                string res =  call_pyfunc("Khan",token.c_str(), file_path);
+
+                cout << res << endl;
+                database_setval(fileid, token , res.c_str());
+ /*               string cmd=database_getval(token+"gen","command");
+                if(cmd=="null") {
+                    log_msg("command is null, skipping\n");
+                    continue;
+                }
+                string msg2=(cmd+" \""+file_path+"\"");
+                sprintf(msg, "=== issuing command ===: %s\n", msg2.c_str());
+                log_msg(msg);
+                stream=popen(msg2.c_str(),"r");
+
+                if(fgets(msg4,200,stream)!=0){
+
+                    sprintf(msg, "=== attr value: %s\n", msg4);
+                    log_msg(msg);
+
+                    database_setval(fileid,token,msg4);
+                }
+                fflush(stream);
+*/
             }
-            fflush(stream);
-          }
-           pclose(stream);
+           // pclose(stream);
         }
-   }
+    }
 }
 
 void map_path(string path, string fileid) {
@@ -343,19 +394,19 @@ void* initializing_khan(void * mnt_dir) {
            cout<<"****RESULT******"<<result<<"\n";    
            */
         //			int count = atoi(result);
-        /*#pragma omp parallel
-          {
-#pragma omp single nowait
-{*/
+//          {
+//#pragma omp single nowait
+//{
+   //     #pragma omp parallel for
         for(int count = 18; count > 0; count--)
         {  
-            //#pragma omp task
-            //				{
+     //       #pragma omp task
+       //     				{
             sprintf(msg, "Globbing with pattern: %s .im7\n", pattern.c_str());
             //log_msg("Globbing with pattern " + pattern + ".im7\n");
             log_msg(msg); 
             glob((pattern +".im7").c_str(), 0, NULL, &files);
-           
+
             sprintf(msg, "Glob Buffer: %d\n", files.gl_pathc); 
             log_msg(msg);
             //log_msg("Glob buffer" + files.gl_pathc + "\n");
@@ -605,7 +656,7 @@ void dir_pop_buf(void* buf, fuse_fill_dir_t filler, string content, bool convert
     for(int i=0; i<contents.size(); i++) {
         if(convert) {
             string filename = database_getval(contents[i].c_str(), "name");
-            
+
             sprintf(msg, "dir_pop_buf loop%s\n", filename.c_str());
             log_msg(msg);
 
@@ -1252,7 +1303,7 @@ void *khan_init(struct fuse_conn_info *conn) {
 
 int khan_flush (const char * path, struct fuse_file_info * info ) {
     //cout << "=============IN KHAN FLUSH!!!!!!!!" << endl << endl;
-    
+
     sprintf(msg, "Khan flush: %s\n", path);
     log_msg(msg);
     string filename = basename(strdup(path));
@@ -1268,7 +1319,7 @@ int khan_flush (const char * path, struct fuse_file_info * info ) {
 int khan_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
     create_calls++;
-    
+
     sprintf(msg, "Khan xmp_create: %s\n", path);
     log_msg(msg);
 
@@ -1446,254 +1497,260 @@ static int xmp_setxattr(const char *path, const char *name, const char *value,  
             char                    *dev_name;
             int                     is_help;
         };
-/*
+        /*
 #define KHAN_OPT(t, p) { t, offsetof(struct khan_param, p), 1 }
 
-        static const struct fuse_opt khan_opts[] = {
-            KHAN_OPT("-s %s",            dev_name),
-            KHAN_OPT("--cs %s",        dev_name),
-            FUSE_OPT_END
-        };
+static const struct fuse_opt khan_opts[] = {
+KHAN_OPT("-s %s",            dev_name),
+KHAN_OPT("--cs %s",        dev_name),
+FUSE_OPT_END
+};
 */
 
-        static int khan_process_arg(void *data, const char *arg, int key, struct fuse_args *outargs) {
-            struct khan_param *param = (struct khan_param*)data;
-            sprintf(msg,"param.dev_name : %s\n",param->dev_name);
-            log_msg(msg);
-            (void)outargs;
-            (void)arg;
-            switch (key) {
-                case 0:
-                    param->is_help = 1;
-                    return fuse_opt_add_arg(outargs, "-ho");
-                default:
-                    return 1;
-            }
-        }
+static int khan_process_arg(void *data, const char *arg, int key, struct fuse_args *outargs) {
+    struct khan_param *param = (struct khan_param*)data;
+    sprintf(msg,"param.dev_name : %s\n",param->dev_name);
+    log_msg(msg);
+    (void)outargs;
+    (void)arg;
+    switch (key) {
+        case 0:
+            param->is_help = 1;
+            return fuse_opt_add_arg(outargs, "-ho");
+        default:
+            return 1;
+    }
+}
 
-        static struct fuse_operations khan_ops;
+static struct fuse_operations khan_ops;
 
-        void my_terminate(int param) {
-            sprintf(msg, "Unmounting: %s\n", mountpoint.c_str());
-            log_msg(msg);          
-            unmounting(mountpoint);
-            chdir("/net/hu21/agangil3/Mediakhan/");
-            log_msg("killing...\n ");
-            cout << "killing... " << flush << endl;
-            exit(1);
-        }
-
-        void analytics(void) {
-            string experiments =  database_getvals("experiment_id"); 
-            sprintf(msg, "Experiment Id's: %s\n", experiments.c_str());
-            log_msg(msg);
-            vector<string> experiment_list = split(experiments, ":");
-            FILE *stream;
-            for(int i=0; i<experiment_list.size(); ++i) {
-                if(experiment_list[i] != "null") 
-                {
-                sprintf(msg, "Experiment Number: %s\n", experiment_list[i].c_str());
-                log_msg(msg);
-                string vals = database_getval("experiment_id", experiment_list[i]);
-                sprintf(msg, "File Ids: %s\n", vals.c_str());
-                log_msg(msg);
-                vector<string> exp_vec = split(vals, ":");
-
-                string intensityframe1 = "";
-                string intensityframe2 = "";
-
-                for(int k=0; k<exp_vec.size(); k++) {
-                    intensityframe1 += database_getval(exp_vec[k], "IntensityFrame1") + " ";
-                    intensityframe2 += database_getval(exp_vec[k], "IntensityFrame2") + " ";
-                }
-                string exp_dir = "/net/hu21/agangil3/experiments/";
-
-                string intensity_vals = intensityframe1 + "i " + intensityframe2; 
+void my_terminate(int param) {
+    sprintf(msg, "Unmounting: %s\n", mountpoint.c_str());
+    log_msg(msg);          
+    unmounting(mountpoint);
+    chdir("/net/hu21/agangil3/Mediakhan/");
+    log_msg("killing...\n ");
+    cout << "killing... " << flush << endl;
+    exit(1);
+}
 
 
-                string msg2="/net/hu21/agangil3/python/bin/python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 1 \"" + intensity_vals + "\"";
-                sprintf(msg, "===Issuing Command =  %s\n", msg2.c_str());
-                log_msg(msg);
-
-                int process1 = system(msg2.c_str());
-
-                cout << "Graph plotted for  " << experiment_list[i] << " Returned: " << process1 << endl;
-
-/*                
-                FILE* stream1=popen(msg2.c_str(),"r");
-                if(stream == NULL){
-                  log_msg("python graph script failed\n");
-                }
-
-                if(pclose(stream1) == -1){
-                  log_msg("pipe not closed\n");
-                }
-   */             
-                string filename = "experiment_" + experiment_list[i] + "_graph.png"; 
-                if(database_getval("name", filename) == "null" || 1) {
-                    string fileid = database_setval("null","name",filename);
-                    database_setval(fileid,"ext","png");
-                    database_setval(fileid,"server",servers.at(0));
-                    database_setval(fileid,"file_path",exp_dir + filename);
-                    database_setval(fileid,"location",server_ids.at(0));
-                    database_setval(fileid, "experiment_id", experiment_list[i]);
-                }
-          
-
-
-                filename = "experiment_" + experiment_list[i] + "_stats.txt"; 
-                string msg3="/net/hu21/agangil3/python/bin/python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 2 \"" + intensity_vals + "\"";
-                
-               // FILE* stream=popen(msg3.c_str(),"r");
-                cout << system(msg3.c_str());
-                sprintf(msg, "=== Issuing Command === %s\n", msg3.c_str());
-                log_msg(msg);
-
-                if(database_getval("name", filename) == "null" || 1) {
-                    string fileid = database_setval("null","name",filename);
-                     cout << "File ID!!! " << fileid;
-                    database_setval(fileid,"ext","txt");
-                    database_setval(fileid,"server",servers.at(0));
-                    database_setval(fileid,"file_path",exp_dir + filename);
-                    database_setval(fileid,"location",server_ids.at(0));
-                    database_setval(fileid, "experiment_id", experiment_list[i]);
-                }
-
-            }
-          }                //pclose(stream);
-        }
-
-        int main(int argc, char *argv[])
+void analytics(void) {
+    string experiments =  database_getvals("experiment_id"); 
+    sprintf(msg, "Experiment Id's: %s\n", experiments.c_str());
+    log_msg(msg);
+    vector<string> experiment_list = split(experiments, ":");
+    FILE *stream;
+    for(int i=0; i<experiment_list.size(); ++i) {
+        if(experiment_list[i] != "null") 
         {
-            khan_ops.getattr  = khan_getattr;
-            khan_ops.init     = khan_init;
-            khan_ops.access    = xmp_access;
-            khan_ops.readlink  = xmp_readlink;
-            khan_ops.readdir  = xmp_readdir;
-            khan_ops.mknod    = xmp_mknod;
-            khan_ops.mkdir    = xmp_mkdir;
-            khan_ops.symlink  = xmp_symlink;
-            khan_ops.unlink    = xmp_unlink;
-            khan_ops.rmdir    = xmp_rmdir;
-            khan_ops.rename    = xmp_rename;
-            khan_ops.link    = xmp_link;
-            khan_ops.chmod    = xmp_chmod;
-            khan_ops.chown    = xmp_chown;
-            khan_ops.truncate  = xmp_truncate;
-            khan_ops.create   = khan_create;
-            khan_ops.utimens  = xmp_utimens;
-            khan_ops.open    = khan_open;
-            khan_ops.read    = xmp_read;
-            khan_ops.write    = xmp_write;
-            khan_ops.statfs    = xmp_statfs;
-            khan_ops.release  = xmp_release;
-            khan_ops.fsync    = xmp_fsync;
-            khan_ops.opendir  = khan_opendir;
-            khan_ops.flush    = khan_flush;
-            khan_ops.getxattr  = xmp_getxattr;
+            sprintf(msg, "Experiment Number: %s\n", experiment_list[i].c_str());
+            log_msg(msg);
+            string vals = database_getval("experiment_id", experiment_list[i]);
+            sprintf(msg, "File Ids: %s\n", vals.c_str());
+            log_msg(msg);
+            vector<string> exp_vec = split(vals, ":");
+
+            string intensityframe1 = "";
+            string intensityframe2 = "";
+
+            for(int k=0; k<exp_vec.size(); k++) {
+                intensityframe1 += database_getval(exp_vec[k], "IntensityFrame1") + " ";
+                intensityframe2 += database_getval(exp_vec[k], "IntensityFrame2") + " ";
+            }
+            string exp_dir = "/net/hu21/agangil3/experiments/";
+
+            string intensity_vals = intensityframe1 + "i " + intensityframe2; 
+
+
+            string msg2="python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 1 \"" + intensity_vals + "\"";
+            sprintf(msg, "===Issuing Command =  %s\n", msg2.c_str());
+            log_msg(msg);
+
+            int process1 = system(msg2.c_str());
+
+            cout << "Graph plotted for  " << experiment_list[i] << " Returned: " << process1 << endl;
+
+            /*                
+                              FILE* stream1=popen(msg2.c_str(),"r");
+                              if(stream == NULL){
+                              log_msg("python graph script failed\n");
+                              }
+
+                              if(pclose(stream1) == -1){
+                              log_msg("pipe not closed\n");
+                              }
+                              */             
+            string filename = "experiment_" + experiment_list[i] + "_graph.png"; 
+            if(database_getval("name", filename) == "null" || 1) {
+                string fileid = database_setval("null","name",filename);
+                database_setval(fileid,"ext","png");
+                database_setval(fileid,"server",servers.at(0));
+                database_setval(fileid,"file_path",exp_dir + filename);
+                database_setval(fileid,"location",server_ids.at(0));
+                database_setval(fileid, "experiment_id", experiment_list[i]);
+            }
+
+
+
+            filename = "experiment_" + experiment_list[i] + "_stats.txt"; 
+            string msg3="python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 2 \"" + intensity_vals + "\"";
+
+            // FILE* stream=popen(msg3.c_str(),"r");
+            cout << system(msg3.c_str());
+            sprintf(msg, "=== Issuing Command === %s\n", msg3.c_str());
+            log_msg(msg);
+
+            if(database_getval("name", filename) == "null" || 1) {
+                string fileid = database_setval("null","name",filename);
+                cout << "File ID!!! " << fileid;
+                database_setval(fileid,"ext","txt");
+                database_setval(fileid,"server",servers.at(0));
+                database_setval(fileid,"file_path",exp_dir + filename);
+                database_setval(fileid,"location",server_ids.at(0));
+                database_setval(fileid, "experiment_id", experiment_list[i]);
+            }
+
+        }
+    }                //pclose(stream);
+}
+
+int main(int argc, char *argv[])
+{
+    khan_ops.getattr  = khan_getattr;
+    khan_ops.init     = khan_init;
+    khan_ops.access    = xmp_access;
+    khan_ops.readlink  = xmp_readlink;
+    khan_ops.readdir  = xmp_readdir;
+    khan_ops.mknod    = xmp_mknod;
+    khan_ops.mkdir    = xmp_mkdir;
+    khan_ops.symlink  = xmp_symlink;
+    khan_ops.unlink    = xmp_unlink;
+    khan_ops.rmdir    = xmp_rmdir;
+    khan_ops.rename    = xmp_rename;
+    khan_ops.link    = xmp_link;
+    khan_ops.chmod    = xmp_chmod;
+    khan_ops.chown    = xmp_chown;
+    khan_ops.truncate  = xmp_truncate;
+    khan_ops.create   = khan_create;
+    khan_ops.utimens  = xmp_utimens;
+    khan_ops.open    = khan_open;
+    khan_ops.read    = xmp_read;
+    khan_ops.write    = xmp_write;
+    khan_ops.statfs    = xmp_statfs;
+    khan_ops.release  = xmp_release;
+    khan_ops.fsync    = xmp_fsync;
+    khan_ops.opendir  = khan_opendir;
+    khan_ops.flush    = khan_flush;
+    khan_ops.getxattr  = xmp_getxattr;
 #ifdef APPLE
-            khan_ops.setxattr  = xmp_setxattr;
-            khan_ops.listxattr  = xmp_listxattr;
-            khan_ops.removexattr  = xmp_removexattr;
-            khan_ops.setvolname     = xmp_setvolname;
-            khan_ops.exchange       = xmp_exchange;
-            khan_ops.getxtimes      = xmp_getxtimes;
-            khan_ops.setbkuptime    = xmp_setbkuptime;
-            khan_ops.setchgtime     = xmp_setchgtime;
-            khan_ops.setcrtime      = xmp_setcrtime;
-            khan_ops.chflags        = xmp_chflags;
-            khan_ops.setattr_x      = xmp_setattr_x;
-            khan_ops.fsetattr_x     = xmp_fsetattr_x;
+    khan_ops.setxattr  = xmp_setxattr;
+    khan_ops.listxattr  = xmp_listxattr;
+    khan_ops.removexattr  = xmp_removexattr;
+    khan_ops.setvolname     = xmp_setvolname;
+    khan_ops.exchange       = xmp_exchange;
+    khan_ops.getxtimes      = xmp_getxtimes;
+    khan_ops.setbkuptime    = xmp_setbkuptime;
+    khan_ops.setchgtime     = xmp_setchgtime;
+    khan_ops.setcrtime      = xmp_setcrtime;
+    khan_ops.chflags        = xmp_chflags;
+    khan_ops.setattr_x      = xmp_setattr_x;
+    khan_ops.fsetattr_x     = xmp_fsetattr_x;
 #endif
 
-            //			Py_SetProgramName(argv[0]);  /* optional but recommended */
-            //			Py_Initialize();
-            //			PyObject *sys = PyImport_ImportModule("sys");
-            //			PyObject *path = PyObject_GetAttrString(sys, "path");
-            //			PyList_Append(path, PyString_FromString("."));
+    Py_SetProgramName(argv[0]);  /* optional but recommended */
+    Py_Initialize();
+    
+    PyRun_SimpleString("import sys"); 
+    PyRun_SimpleString("sys.path.append(\"/net/hu21/agangil3/KhanScripts\")");    
+  
+    //			PyObject *sys = PyImport_ImportModule("sys");
+    //			PyObject *path = PyObject_GetAttrString(sys, "path");
+    //			PyList_Append(path, PyString_FromString("."));
 
-            int retval=0;
-            struct khan_param param = { 0, 0, NULL, 0 };
-            if((argc<2)||(argc>4)) {
-                printf("Usage: ./khan <mount_dir_location> [stores.txt] [-d]\nAborting...\n");
-                exit(1);
-            }
+    int retval=0;
+    struct khan_param param = { 0, 0, NULL, 0 };
+    if((argc<2)||(argc>4)) {
+        printf("Usage: ./khan <mount_dir_location> [stores.txt] [-d]\nAborting...\n");
+        exit(1);
+    }
 
-            mountpoint = argv[1];
+    mountpoint = argv[1];
 
-            struct fuse_args args = FUSE_ARGS_INIT(0, NULL);
-            int j;
-            const char* store_filename="/net/hu21/agangil3/MediaKhan/stores.txt";
-            for(j = 0; j < argc; j++) {
-                if((j == 2) && (argv[j][0]!='-')) {
-                    store_filename = argv[j];
-                } else {
-                    fuse_opt_add_arg(&args, argv[j]);
-                }
-            }
-
-            fuse_opt_add_arg(&args, "-o");
-            fuse_opt_add_arg(&args, "allow_other");
-
-            //set signal handler
-            signal(SIGTERM, my_terminate);
-            signal(SIGKILL, my_terminate);
-
-            fprintf(stderr, "store filename: %s\n", store_filename);
-            FILE* stores = fopen(store_filename, "r");
-            char buffer[100];
-            char buffer2[100];
-            fscanf(stores, "%s\n", buffer);
-            this_server_id = buffer;
-            while(fscanf(stores, "%s %s\n", buffer, buffer2)!=EOF) {
-                if(strcmp(buffer,"cloud")==0) {
-                    string module = buffer2;
-                    module = "cloud." + module;
-                    //cloud_interface = PyImport_ImportModule(module.c_str());
-                }
-                servers.push_back(buffer);
-                server_ids.push_back(buffer2);
-                if(this_server_id == buffer2) {
-                    this_server = buffer;
-                }
-            }
-            fclose(stores);
-            umask(0);
-            if(-1==log_open()) {
-                log_msg("Unable to open the log file..NO log would be recorded..!\n");
-            }
-            log_msg("\n\n--------------------------------------------------------\n");
-            khan_data = (khan_state*)calloc(sizeof(struct khan_state), 1);
-            if (khan_data == NULL)  {
-                log_msg("Could not allocate memory to khan_data!..Aborting..!\n");
-                abort();
-            }
-
-            // Get the number of processors in this system
-            //	int iCPU = omp_get_num_procs();
-            // Now set the number of threads
-            //	omp_set_num_threads(iCPU);
-            sprintf(msg, "Servers at 0: %s\n", servers.at(0).c_str());
-            log_msg(msg);
-
-            pthread_t khan_init_thread;
-            int init_result = pthread_create(&khan_init_thread, NULL, &initializing_khan, (void *)argv[1]);
-
-            log_msg("Initializing khan dispatched in a new thread\n");
-
-            //      if(initializing_khan(argv[1]) != NULL) {
-            log_msg("Could not initialize khan..Aborting..!\n");
-            //			return -1;
-            //	}
-
-            //analytics();      
-
-            rename_times.open(rename_times_file_name.c_str(), ofstream::out);
-            rename_times.precision(15);
-            start_times.open(start_times_file_name.c_str(), ofstream::out);
-            start_times.precision(15);
-            log_msg("initialized....\n");
-            retval=fuse_main(args.argc,args.argv, &khan_ops, khan_data);
-            log_msg("Done with fuse_main...\n");
-            return retval;
+    struct fuse_args args = FUSE_ARGS_INIT(0, NULL);
+    int j;
+    const char* store_filename="/net/hu21/agangil3/MediaKhan/stores.txt";
+    for(j = 0; j < argc; j++) {
+        if((j == 2) && (argv[j][0]!='-')) {
+            store_filename = argv[j];
+        } else {
+            fuse_opt_add_arg(&args, argv[j]);
         }
+    }
+
+    fuse_opt_add_arg(&args, "-o");
+    fuse_opt_add_arg(&args, "allow_other");
+
+    //set signal handler
+    signal(SIGTERM, my_terminate);
+    signal(SIGKILL, my_terminate);
+
+    fprintf(stderr, "store filename: %s\n", store_filename);
+    FILE* stores = fopen(store_filename, "r");
+    char buffer[100];
+    char buffer2[100];
+    fscanf(stores, "%s\n", buffer);
+    this_server_id = buffer;
+    while(fscanf(stores, "%s %s\n", buffer, buffer2)!=EOF) {
+        if(strcmp(buffer,"cloud")==0) {
+            string module = buffer2;
+            module = "cloud." + module;
+            //cloud_interface = PyImport_ImportModule(module.c_str());
+        }
+        servers.push_back(buffer);
+        server_ids.push_back(buffer2);
+        if(this_server_id == buffer2) {
+            this_server = buffer;
+        }
+    }
+    fclose(stores);
+    umask(0);
+    if(-1==log_open()) {
+        log_msg("Unable to open the log file..NO log would be recorded..!\n");
+    }
+    log_msg("\n\n--------------------------------------------------------\n");
+    khan_data = (khan_state*)calloc(sizeof(struct khan_state), 1);
+    if (khan_data == NULL)  {
+        log_msg("Could not allocate memory to khan_data!..Aborting..!\n");
+        abort();
+    }
+
+    // Get the number of processors in this system
+    //	int iCPU = omp_get_num_procs();
+    // Now set the number of threads
+    //	omp_set_num_threads(iCPU);
+    sprintf(msg, "Servers at 0: %s\n", servers.at(0).c_str());
+    log_msg(msg);
+
+    pthread_t khan_init_thread;
+    int init_result = pthread_create(&khan_init_thread, NULL, &initializing_khan, (void *)argv[1]);
+
+    log_msg("Initializing khan dispatched in a new thread\n");
+
+    //      if(initializing_khan(argv[1]) != NULL) {
+    log_msg("Could not initialize khan..Aborting..!\n");
+    //			return -1;
+    //	}
+
+    //analytics();      
+
+    rename_times.open(rename_times_file_name.c_str(), ofstream::out);
+    rename_times.precision(15);
+    start_times.open(start_times_file_name.c_str(), ofstream::out);
+    start_times.precision(15);
+    log_msg("initialized....\n");
+    retval=fuse_main(args.argc,args.argv, &khan_ops, khan_data);
+    Py_Finalize();
+    log_msg("Done with fuse_main...\n");
+    return retval;
+}
