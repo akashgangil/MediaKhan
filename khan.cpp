@@ -92,12 +92,12 @@ string call_pyfunc(string script_name, string func_name, string file_path){
 
     // Clean up
     /*Py_DECREF(pModule);
-    Py_DECREF(pValue);
-    Py_DECREF(pFile);
-    Py_DECREF(pArgs);
-    Py_DECREF(pClass);
-    Py_DECREF(pInstance);
-    */
+      Py_DECREF(pValue);
+      Py_DECREF(pFile);
+      Py_DECREF(pArgs);
+      Py_DECREF(pClass);
+      Py_DECREF(pInstance);
+      */
     return result;
 }
 
@@ -160,14 +160,15 @@ void process_file(string server, string fileid, string file_path) {
     if(attrs != "null"){
         string token="";
         stringstream ss2(attrs.c_str());
-//        FILE* stream;
+        //        FILE* stream;
         while(getline(ss2,token,':')){
             if(strcmp(token.c_str(),"null")!=0){
 
                 sprintf(msg, "=== looking at attr === : %s\n", token.c_str());
                 log_msg(msg);
-                
-                if(token == "name" || token == "ext" || token == "location" || token == "experiemnt_id" || token == "file_path") {
+
+                if(token == "name" || token == "ext" || token == "location" || 
+                        token == "experiment_id" || token == "file_path" || token == "tags") {
                     continue;
                 }
 
@@ -175,27 +176,27 @@ void process_file(string server, string fileid, string file_path) {
 
                 cout << res << endl;
                 database_setval(fileid, token , res.c_str());
- /*               string cmd=database_getval(token+"gen","command");
-                if(cmd=="null") {
-                    log_msg("command is null, skipping\n");
-                    continue;
-                }
-                string msg2=(cmd+" \""+file_path+"\"");
-                sprintf(msg, "=== issuing command ===: %s\n", msg2.c_str());
-                log_msg(msg);
-                stream=popen(msg2.c_str(),"r");
+                /*               string cmd=database_getval(token+"gen","command");
+                                 if(cmd=="null") {
+                                 log_msg("command is null, skipping\n");
+                                 continue;
+                                 }
+                                 string msg2=(cmd+" \""+file_path+"\"");
+                                 sprintf(msg, "=== issuing command ===: %s\n", msg2.c_str());
+                                 log_msg(msg);
+                                 stream=popen(msg2.c_str(),"r");
 
-                if(fgets(msg4,200,stream)!=0){
+                                 if(fgets(msg4,200,stream)!=0){
 
-                    sprintf(msg, "=== attr value: %s\n", msg4);
-                    log_msg(msg);
+                                 sprintf(msg, "=== attr value: %s\n", msg4);
+                                 log_msg(msg);
 
-                    database_setval(fileid,token,msg4);
-                }
-                fflush(stream);
-*/
+                                 database_setval(fileid,token,msg4);
+                                 }
+                                 fflush(stream);
+                                 */
             }
-           // pclose(stream);
+            // pclose(stream);
         }
     }
 }
@@ -394,14 +395,14 @@ void* initializing_khan(void * mnt_dir) {
            cout<<"****RESULT******"<<result<<"\n";    
            */
         //			int count = atoi(result);
-//          {
-//#pragma omp single nowait
-//{
-   //     #pragma omp parallel for
+        //          {
+        //#pragma omp single nowait
+        //{
+        //     #pragma omp parallel for
         for(int count = 18; count > 0; count--)
         {  
-     //       #pragma omp task
-       //     				{
+            //       #pragma omp task
+            //     				{
             sprintf(msg, "Globbing with pattern: %s .im7\n", pattern.c_str());
             //log_msg("Globbing with pattern " + pattern + ".im7\n");
             log_msg(msg); 
@@ -410,11 +411,14 @@ void* initializing_khan(void * mnt_dir) {
             sprintf(msg, "Glob Buffer: %d\n", files.gl_pathc); 
             log_msg(msg);
             //log_msg("Glob buffer" + files.gl_pathc + "\n");
-            if(files.gl_pathc != 0 ) experiment_id++;
+            if(files.gl_pathc != 0 ) {
+                experiment_id++;
+            }
             for(int j=0; j<files.gl_pathc; j++) {//for each file
                 string file_path = files.gl_pathv[j];
                 experiments.insert(file_path.substr(0, file_path.size()-11));
-                stringstream ss;
+                ostringstream ss;
+                ss.flush();
                 ss << experiments.size();
                 sprintf(msg, "*** FILE Path *** %s\n", file_path.c_str());
                 string ext = strrchr(file_path.c_str(),'.')+1;
@@ -440,17 +444,17 @@ void* initializing_khan(void * mnt_dir) {
             pattern += "/*";
             //	}   
             //	}
-            }
+    }
 
 
-//glob_t files;
-//glob((servers.at(i)+"/*.*").c_str(),0,NULL,&files);
-//cout << "******************Listing down the files***************" << "\n";
-//	}
-log_msg("At the end of initialize\n");
-analytics();
-return 0;
-}
+    //glob_t files;
+    //glob((servers.at(i)+"/*.*").c_str(),0,NULL,&files);
+    //cout << "******************Listing down the files***************" << "\n";
+    //	}
+    log_msg("At the end of initialize\n");
+    analytics();
+    return 0;
+    }
 }
 
 int khan_opendir(const char *c_path, struct fuse_file_info *fi) {
@@ -1562,14 +1566,35 @@ void analytics(void) {
 
             string intensity_vals = intensityframe1 + "i " + intensityframe2; 
 
+            PyObject *pName, *pModule, *pDict, *pValue, *pArgs, *pClass, *pInstance, *pIntensity, *pExperimentId;
 
-            string msg2="python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 1 \"" + intensity_vals + "\"";
-            sprintf(msg, "===Issuing Command =  %s\n", msg2.c_str());
-            log_msg(msg);
+            pName = PyString_FromString(strdup("Graph"));
+            pModule = PyImport_Import(pName);
 
-            int process1 = system(msg2.c_str());
+            pDict = PyModule_GetDict(pModule);
+            pClass = PyDict_GetItemString(pDict, strdup("Graph"));
 
-            cout << "Graph plotted for  " << experiment_list[i] << " Returned: " << process1 << endl;
+            if (PyCallable_Check(pClass))
+            {
+                pExperimentId = PyString_FromString(experiment_list[i].c_str());
+                pIntensity = PyString_FromString(strdup(intensity_vals.c_str()));
+                pArgs = PyTuple_New(2);
+                PyTuple_SetItem(pArgs, 0, pExperimentId);
+                PyTuple_SetItem(pArgs, 1, pIntensity);
+                pInstance = PyObject_CallObject(pClass, pArgs);
+            }
+
+            PyObject_CallMethod(pInstance, strdup("Plot"), NULL);
+
+            //string msg2="python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 1 \"" + intensity_vals + "\"";
+            //            sprintf(msg, "===Issuing Command =  %s\n", msg2.c_str());
+            //            log_msg(msg);
+
+            //int process1 = system(msg2.c_str());
+
+            PyObject_CallMethod(pInstance, strdup("Stats"),NULL);
+
+//            cout << "Graph plotted for  " << experiment_list[i] << " Returned: " << process1 << endl;
 
             /*                
                               FILE* stream1=popen(msg2.c_str(),"r");
@@ -1594,12 +1619,12 @@ void analytics(void) {
 
 
             filename = "experiment_" + experiment_list[i] + "_stats.txt"; 
-            string msg3="python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 2 \"" + intensity_vals + "\"";
+            //string msg3="python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 2 \"" + intensity_vals + "\"";
 
             // FILE* stream=popen(msg3.c_str(),"r");
-            cout << system(msg3.c_str());
-            sprintf(msg, "=== Issuing Command === %s\n", msg3.c_str());
-            log_msg(msg);
+            //cout << system(msg3.c_str());
+            //sprintf(msg, "=== Issuing Command === %s\n", msg3.c_str());
+            //log_msg(msg);
 
             if(database_getval("name", filename) == "null" || 1) {
                 string fileid = database_setval("null","name",filename);
@@ -1660,10 +1685,10 @@ int main(int argc, char *argv[])
 
     Py_SetProgramName(argv[0]);  /* optional but recommended */
     Py_Initialize();
-    
+
     PyRun_SimpleString("import sys"); 
     PyRun_SimpleString("sys.path.append(\"/net/hu21/agangil3/KhanScripts\")");    
-  
+
     //			PyObject *sys = PyImport_ImportModule("sys");
     //			PyObject *path = PyObject_GetAttrString(sys, "path");
     //			PyList_Append(path, PyString_FromString("."));
