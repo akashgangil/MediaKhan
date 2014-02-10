@@ -1585,27 +1585,8 @@ void analytics(void) {
             }
 
             PyObject_CallMethod(pInstance, strdup("Plot"), NULL);
-
-            //string msg2="python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 1 \"" + intensity_vals + "\"";
-            //            sprintf(msg, "===Issuing Command =  %s\n", msg2.c_str());
-            //            log_msg(msg);
-
-            //int process1 = system(msg2.c_str());
-
             PyObject_CallMethod(pInstance, strdup("Stats"),NULL);
 
-//            cout << "Graph plotted for  " << experiment_list[i] << " Returned: " << process1 << endl;
-
-            /*                
-                              FILE* stream1=popen(msg2.c_str(),"r");
-                              if(stream == NULL){
-                              log_msg("python graph script failed\n");
-                              }
-
-                              if(pclose(stream1) == -1){
-                              log_msg("pipe not closed\n");
-                              }
-                              */             
             string filename = "experiment_" + experiment_list[i] + "_graph.png"; 
             if(database_getval("name", filename) == "null" || 1) {
                 string fileid = database_setval("null","name",filename);
@@ -1616,19 +1597,9 @@ void analytics(void) {
                 database_setval(fileid, "experiment_id", experiment_list[i]);
             }
 
-
-
             filename = "experiment_" + experiment_list[i] + "_stats.txt"; 
-            //string msg3="python /net/hu21/agangil3/KhanScripts/graph.py -e " + experiment_list[i] + " -f 2 \"" + intensity_vals + "\"";
-
-            // FILE* stream=popen(msg3.c_str(),"r");
-            //cout << system(msg3.c_str());
-            //sprintf(msg, "=== Issuing Command === %s\n", msg3.c_str());
-            //log_msg(msg);
-
             if(database_getval("name", filename) == "null" || 1) {
                 string fileid = database_setval("null","name",filename);
-                cout << "File ID!!! " << fileid;
                 database_setval(fileid,"ext","txt");
                 database_setval(fileid,"server",servers.at(0));
                 database_setval(fileid,"file_path",exp_dir + filename);
@@ -1637,7 +1608,7 @@ void analytics(void) {
             }
 
         }
-    }                //pclose(stream);
+    }           
 }
 
 int main(int argc, char *argv[])
