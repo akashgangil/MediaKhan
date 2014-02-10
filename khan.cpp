@@ -1553,21 +1553,6 @@ void analytics(void) {
             PyObject_CallMethod(pInstance, strdup("Plot"), NULL);
             PyObject_CallMethod(pInstance, strdup("Stats"),NULL);
 
-<<<<<<< HEAD
-=======
-            //            cout << "Graph plotted for  " << experiment_list[i] << " Returned: " << process1 << endl;
-
-            /*                
-                              FILE* stream1=popen(msg2.c_str(),"r");
-                              if(stream == NULL){
-                              log_msg("python graph script failed\n");
-                              }
-
-                              if(pclose(stream1) == -1){
-                              log_msg("pipe not closed\n");
-                              }
-                              */             
->>>>>>> c863540c6d379a7153e65902aee66bec2bb93283
             string filename = "experiment_" + experiment_list[i] + "_graph.png"; 
             if(database_getval("name", filename) == "null" || 1) {
                 string fileid = database_setval("null","name",filename);
