@@ -176,27 +176,7 @@ void process_file(string server, string fileid, string file_path) {
 
                 cout << res << endl;
                 database_setval(fileid, token , res.c_str());
-                /*               string cmd=database_getval(token+"gen","command");
-                                 if(cmd=="null") {
-                                 log_msg("command is null, skipping\n");
-                                 continue;
-                                 }
-                                 string msg2=(cmd+" \""+file_path+"\"");
-                                 sprintf(msg, "=== issuing command ===: %s\n", msg2.c_str());
-                                 log_msg(msg);
-                                 stream=popen(msg2.c_str(),"r");
-
-                                 if(fgets(msg4,200,stream)!=0){
-
-                                 sprintf(msg, "=== attr value: %s\n", msg4);
-                                 log_msg(msg);
-
-                                 database_setval(fileid,token,msg4);
-                                 }
-                                 fflush(stream);
-                                 */
             }
-            // pclose(stream);
         }
     }
 }
@@ -386,1122 +366,1108 @@ void* initializing_khan(void * mnt_dir) {
         string pattern= servers.at(0) + "/*";
         static int experiment_id = 0;
         set<string> experiments;
-        /*
-           FILE* pipe = popen(command.c_str(), "r");
-           if(!pipe) return -1; 
 
-           char result[100];
-           if(fgets(result,128, pipe) != NULL)
-           cout<<"****RESULT******"<<result<<"\n";    
-           */
-        //			int count = atoi(result);
-        //          {
-        //#pragma omp single nowait
-        //{
-        //     #pragma omp parallel for
-        for(int count = 18; count > 0; count--)
-        {  
-            //       #pragma omp task
-            //     				{
-            sprintf(msg, "Globbing with pattern: %s .im7\n", pattern.c_str());
-            //log_msg("Globbing with pattern " + pattern + ".im7\n");
-            log_msg(msg); 
-            glob((pattern +".im7").c_str(), 0, NULL, &files);
+#pragma omp single nowait
+        {
+#pragma omp parallel for
+            for(int count = 18; count > 0; count--)
+            {  
+#pragma omp task
+                {
+                    sprintf(msg, "Globbing with pattern: %s .im7\n", pattern.c_str());
+                    //log_msg("Globbing with pattern " + pattern + ".im7\n");
+                    log_msg(msg); 
+                    glob((pattern +".im7").c_str(), 0, NULL, &files);
 
-            sprintf(msg, "Glob Buffer: %d\n", files.gl_pathc); 
-            log_msg(msg);
-            //log_msg("Glob buffer" + files.gl_pathc + "\n");
-            if(files.gl_pathc != 0 ) {
-                experiment_id++;
-            }
-            for(int j=0; j<files.gl_pathc; j++) {//for each file
-                string file_path = files.gl_pathv[j];
-                experiments.insert(file_path.substr(0, file_path.size()-11));
-                ostringstream ss;
-                ss.flush();
-                ss << experiments.size();
-                sprintf(msg, "*** FILE Path *** %s\n", file_path.c_str());
-                string ext = strrchr(file_path.c_str(),'.')+1;
-                string filename=strrchr(file_path.c_str(),'/')+1;
-                if(database_getval("name", filename) == "null" || 1) {
-                    string fileid = database_setval("null","name",filename);
-                    database_setval(fileid,"ext",ext);
-                    database_setval(fileid,"server",servers.at(i));
-                    database_setval(fileid,"location",server_ids.at(i));
-                    database_setval(fileid, "experiment_id", ss.str());
-                    database_setval(fileid, "file_path", file_path);
-                    for(int k=0; k<server_ids.size(); k++) {
-                        database_setval(fileid, server_ids.at(k), "0");
+                    sprintf(msg, "Glob Buffer: %d\n", files.gl_pathc); 
+                    log_msg(msg);
+                    //log_msg("Glob buffer" + files.gl_pathc + "\n");
+                    if(files.gl_pathc != 0 ) {
+                        experiment_id++;
                     }
-                    process_file(servers.at(i), fileid, file_path);
-                } else {
-                    string fileid = database_getval("name",filename);
-                    database_setval(fileid,"server",servers.at(i));
-                    database_setval(fileid,"location",server_ids.at(i));
-                }
-            }
-            //}
-            pattern += "/*";
-            //	}   
-            //	}
-    }
-
-
-    //glob_t files;
-    //glob((servers.at(i)+"/*.*").c_str(),0,NULL,&files);
-    //cout << "******************Listing down the files***************" << "\n";
-    //	}
-    log_msg("At the end of initialize\n");
-    analytics();
-    return 0;
-    }
-}
-
-int khan_opendir(const char *c_path, struct fuse_file_info *fi) {
-    return 0;
-}
-
-bool find(string str, vector<string> arr) {
-    for(int i=0; i<arr.size(); i++) {
-        if(str == arr[i]) return true;
-    }
-    return false;
-}
-
-string str_intersect(string str1, string str2) {
-    vector<string> vec_1 = split(str1, ":");
-    vector<string> vec_2 = split(str2, ":");
-    vector<string> ret;
-    for(int i=0; i<vec_1.size(); i++) {
-        for(int j=0; j<vec_2.size(); j++) {
-            if((vec_1[i]==vec_2[j]) && (!find(vec_1[i], ret))) {
-                ret.push_back(vec_1[i]);
-            }
-        }
-    }
-    return join(ret,":");
-}
-
-string last_string = "";
-vector<string> last_vector;
-bool content_has(string vals, string val) {
-    vector<string> checks;
-    if(last_string == vals) {
-        checks = last_vector;
-    } else {
-        checks = split(vals,":");
-        last_string = vals;
-        last_vector = checks;
-    }
-    for(int i=0; i<checks.size(); i++) {
-        if(checks[i]==val) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void dir_pop_stbuf(struct stat* stbuf, string contents) {
-    time_t current_time;
-    time(&current_time);
-    stbuf->st_mode=S_IFDIR | 0755;
-    stbuf->st_nlink=count_string(contents)+2;
-    stbuf->st_size=4096;
-    stbuf->st_mtime=current_time;
-    stbuf->st_uid = getuid();
-    stbuf->st_gid = getgid();
-}
-
-void file_pop_stbuf(struct stat* stbuf, string filename) {
-    time_t current_time;
-    time(&current_time);
-    stbuf->st_mode=S_IFREG | 0644;
-    stbuf->st_nlink=1;
-    stbuf->st_size=get_file_size(filename);
-    stbuf->st_mtime=current_time;
-    stbuf->st_uid = getuid();
-    stbuf->st_gid = getgid();
-}
-
-string resolve_selectors(string path) {
-    //cout << "starting split" << endl << flush;
-    vector<string> pieces = split(path, "/");
-    //cout << "starting process" << endl << flush;
-    for(int i=0; i<pieces.size(); i++) {
-        //cout << "looking at " << pieces[i] << endl << flush;
-        if(pieces[i].at(0)==SELECTOR_C) {
-            //cout << "is a selector" << endl << flush;
-            vector<string> selectores = split(pieces[i], SELECTOR_S);
-            pieces[i]="";
-            //cout << selectores.size() << " selectors to be exact" << endl << flush;
-            for(int j=0; j<selectores.size(); j++) {
-                //cout << "checking " << selectores[j] << endl << flush;
-                bool matched = false;
-                string content = database_getvals("attrs");
-                //cout << "content " << content << endl << flush;
-                vector<string> attr_vec = split(content, ":");
-                //cout << "vs " << attr_vec.size() << " attrs" << endl << flush;
-                //for all attrs
-                for(int k=0; k<attr_vec.size(); k++) {
-                    //cout << "on " << attr_vec[k] << endl << flush;
-                    string vals = database_getvals(attr_vec[k]);
-                    //cout << "with " << vals << endl << flush;
-                    //see if piece is in vals
-                    if(content_has(vals, selectores[j])) {
-                        //if so piece now equals attr/val
-                        if(pieces[i].length()>0) {
-                            pieces[i]+="/";
+                    for(int j=0; j<files.gl_pathc; j++) {//for each file
+                        string file_path = files.gl_pathv[j];
+                        experiments.insert(file_path.substr(0, file_path.size()-11));
+                        ostringstream ss;
+                        ss.flush();
+                        ss << experiments.size();
+                        sprintf(msg, "*** FILE Path *** %s\n", file_path.c_str());
+                        string ext = strrchr(file_path.c_str(),'.')+1;
+                        string filename=strrchr(file_path.c_str(),'/')+1;
+                        if(database_getval("name", filename) == "null" || 1) {
+                            string fileid = database_setval("null","name",filename);
+                            database_setval(fileid,"ext",ext);
+                            database_setval(fileid,"server",servers.at(i));
+                            database_setval(fileid,"location",server_ids.at(i));
+                            database_setval(fileid, "experiment_id", ss.str());
+                            database_setval(fileid, "file_path", file_path);
+                            for(int k=0; k<server_ids.size(); k++) {
+                                database_setval(fileid, server_ids.at(k), "0");
+                            }
+                            process_file(servers.at(i), fileid, file_path);
+                        } else {
+                            string fileid = database_getval("name",filename);
+                            database_setval(fileid,"server",servers.at(i));
+                            database_setval(fileid,"location",server_ids.at(i));
                         }
-                        matched = true;
-                        pieces[i]+=attr_vec[k]+"/"+selectores[j];
-                        break;
                     }
                 }
-                if(!matched) {
-                    pieces[i]+="tags/"+selectores[j];
+                pattern += "/*";
+            }   
+        }
+
+
+        log_msg("At the end of initialize\n");
+        analytics();
+        return 0;
+    }
+    }
+
+    int khan_opendir(const char *c_path, struct fuse_file_info *fi) {
+        return 0;
+    }
+
+    bool find(string str, vector<string> arr) {
+        for(int i=0; i<arr.size(); i++) {
+            if(str == arr[i]) return true;
+        }
+        return false;
+    }
+
+    string str_intersect(string str1, string str2) {
+        vector<string> vec_1 = split(str1, ":");
+        vector<string> vec_2 = split(str2, ":");
+        vector<string> ret;
+        for(int i=0; i<vec_1.size(); i++) {
+            for(int j=0; j<vec_2.size(); j++) {
+                if((vec_1[i]==vec_2[j]) && (!find(vec_1[i], ret))) {
+                    ret.push_back(vec_1[i]);
                 }
             }
         }
+        return join(ret,":");
     }
-    string ret = join(pieces, "/");
-    //cout << "selector path " << path << " resolved to " << ret << endl;
-    return ret;
-}
 
-int populate_getattr_buffer(struct stat* stbuf, stringstream &path) {
-    string attr, val, file, more;
-    string current = "none";
-    void* aint=getline(path, attr, '/');
-    void* vint=getline(path, val, '/');
-    void* fint=getline(path, file, '/');
-    void* mint=getline(path, more, '/');
-    bool loop = true;
-    while(loop) {
-        //cout << "top of loop" << endl << flush;
-        loop = false;
-        if(aint) {
-            string query = database_getval("attrs", attr);
-            //cout << content << "  " << attr << " " << query << endl;
-            if(query!="null") {
-                string content = database_getvals(attr);
-                if(vint) {
-                    if(content_has(content, val) || (attr=="tags")) {
-                        string dir_content = database_getval(attr, val);
-                        if(current!="none") {
-                            dir_content = str_intersect(current, dir_content);
+    string last_string = "";
+    vector<string> last_vector;
+    bool content_has(string vals, string val) {
+        vector<string> checks;
+        if(last_string == vals) {
+            checks = last_vector;
+        } else {
+            checks = split(vals,":");
+            last_string = vals;
+            last_vector = checks;
+        }
+        for(int i=0; i<checks.size(); i++) {
+            if(checks[i]==val) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void dir_pop_stbuf(struct stat* stbuf, string contents) {
+        time_t current_time;
+        time(&current_time);
+        stbuf->st_mode=S_IFDIR | 0755;
+        stbuf->st_nlink=count_string(contents)+2;
+        stbuf->st_size=4096;
+        stbuf->st_mtime=current_time;
+        stbuf->st_uid = getuid();
+        stbuf->st_gid = getgid();
+    }
+
+    void file_pop_stbuf(struct stat* stbuf, string filename) {
+        time_t current_time;
+        time(&current_time);
+        stbuf->st_mode=S_IFREG | 0644;
+        stbuf->st_nlink=1;
+        stbuf->st_size=get_file_size(filename);
+        stbuf->st_mtime=current_time;
+        stbuf->st_uid = getuid();
+        stbuf->st_gid = getgid();
+    }
+
+    string resolve_selectors(string path) {
+        //cout << "starting split" << endl << flush;
+        vector<string> pieces = split(path, "/");
+        //cout << "starting process" << endl << flush;
+        for(int i=0; i<pieces.size(); i++) {
+            //cout << "looking at " << pieces[i] << endl << flush;
+            if(pieces[i].at(0)==SELECTOR_C) {
+                //cout << "is a selector" << endl << flush;
+                vector<string> selectores = split(pieces[i], SELECTOR_S);
+                pieces[i]="";
+                //cout << selectores.size() << " selectors to be exact" << endl << flush;
+                for(int j=0; j<selectores.size(); j++) {
+                    //cout << "checking " << selectores[j] << endl << flush;
+                    bool matched = false;
+                    string content = database_getvals("attrs");
+                    //cout << "content " << content << endl << flush;
+                    vector<string> attr_vec = split(content, ":");
+                    //cout << "vs " << attr_vec.size() << " attrs" << endl << flush;
+                    //for all attrs
+                    for(int k=0; k<attr_vec.size(); k++) {
+                        //cout << "on " << attr_vec[k] << endl << flush;
+                        string vals = database_getvals(attr_vec[k]);
+                        //cout << "with " << vals << endl << flush;
+                        //see if piece is in vals
+                        if(content_has(vals, selectores[j])) {
+                            //if so piece now equals attr/val
+                            if(pieces[i].length()>0) {
+                                pieces[i]+="/";
+                            }
+                            matched = true;
+                            pieces[i]+=attr_vec[k]+"/"+selectores[j];
+                            break;
                         }
-                        string attrs_content = database_getvals("attrs");
-                        if(fint) {
-                            string fileid = database_getval("name",file);
-                            if(content_has(dir_content, fileid)) {
-                                if(!mint) {
-                                    // /attr/val/file path
-                                    string file_path = database_getval(fileid, "file_path");
-                                    file_pop_stbuf(stbuf, file_path);
-                                    return 0;
+                    }
+                    if(!matched) {
+                        pieces[i]+="tags/"+selectores[j];
+                    }
+                }
+            }
+        }
+        string ret = join(pieces, "/");
+        //cout << "selector path " << path << " resolved to " << ret << endl;
+        return ret;
+    }
+
+    int populate_getattr_buffer(struct stat* stbuf, stringstream &path) {
+        string attr, val, file, more;
+        string current = "none";
+        void* aint=getline(path, attr, '/');
+        void* vint=getline(path, val, '/');
+        void* fint=getline(path, file, '/');
+        void* mint=getline(path, more, '/');
+        bool loop = true;
+        while(loop) {
+            //cout << "top of loop" << endl << flush;
+            loop = false;
+            if(aint) {
+                string query = database_getval("attrs", attr);
+                //cout << content << "  " << attr << " " << query << endl;
+                if(query!="null") {
+                    string content = database_getvals(attr);
+                    if(vint) {
+                        if(content_has(content, val) || (attr=="tags")) {
+                            string dir_content = database_getval(attr, val);
+                            if(current!="none") {
+                                dir_content = str_intersect(current, dir_content);
+                            }
+                            string attrs_content = database_getvals("attrs");
+                            if(fint) {
+                                string fileid = database_getval("name",file);
+                                if(content_has(dir_content, fileid)) {
+                                    if(!mint) {
+                                        // /attr/val/file path
+                                        string file_path = database_getval(fileid, "file_path");
+                                        file_pop_stbuf(stbuf, file_path);
+                                        return 0;
+                                    }
+                                } else if(content_has(attrs_content, file)) {
+                                    //repeat with aint = fint, vint = mint, etc
+                                    aint = fint;
+                                    attr = file;
+                                    vint = mint;
+                                    val = more;
+                                    fint=getline(path, file, '/');
+                                    mint=getline(path, more, '/');
+                                    current = dir_content;
+                                    loop = true;
                                 }
-                            } else if(content_has(attrs_content, file)) {
-                                //repeat with aint = fint, vint = mint, etc
-                                aint = fint;
-                                attr = file;
-                                vint = mint;
-                                val = more;
-                                fint=getline(path, file, '/');
-                                mint=getline(path, more, '/');
-                                current = dir_content;
-                                loop = true;
-                            }
-                        } else {
-                            // /attr/val dir
-                            dir_pop_stbuf(stbuf, dir_content+attrs_content);
-                            return 0;
-                        }  
-                    } 
-                } else { 
-                    // /attr dir
-                    dir_pop_stbuf(stbuf, content);
-                    return 0;
-                }
-            }
-        } else {
-            string types=database_getvals("attrs");
-            dir_pop_stbuf(stbuf, types);
-            return 0;
-        }
-    }
-    return -2;
-}
-
-static int khan_getattr(const char *c_path, struct stat *stbuf) {
-
-    //cout << "started get attr" << endl << flush;
-    string pre_processed = c_path+1;
-    if(pre_processed == ".DS_Store") {
-        file_pop_stbuf(stbuf, pre_processed);
-        return 0;
-    }
-    //cout << "starting to resolve selectors" << endl << flush;
-    string after = resolve_selectors(pre_processed);
-    stringstream path(after);
-    //cout << "working to pop buffer" << endl << flush;
-    //file_pop_stbuf(stbuf, "test");
-    //int ret = 0;
-    int ret = populate_getattr_buffer(stbuf, path);
-    //cout << "ended get attr" << endl << flush;
-    return ret;
-}
-
-void dir_pop_buf(void* buf, fuse_fill_dir_t filler, string content, bool convert) {
-
-    sprintf(msg, "Inside dir_pop_buf: %s\n", content.c_str());
-    log_msg(msg);
-
-    vector<string> contents = split(content, ":");
-    for(int i=0; i<contents.size(); i++) {
-        if(convert) {
-            string filename = database_getval(contents[i].c_str(), "name");
-
-            sprintf(msg, "dir_pop_buf loop%s\n", filename.c_str());
-            log_msg(msg);
-
-            filler(buf, filename.c_str(), NULL, 0);
-        } else {
-            filler(buf, contents[i].c_str(), NULL, 0);
-        }
-    }
-}
-
-
-void populate_readdir_buffer(void* buf, fuse_fill_dir_t filler, stringstream &path) {
-
-    log_msg("Populate Read Dir Buffer\n");
-    sprintf(msg, "Path is %s\n", path.str().c_str());
-    log_msg(msg);
-    string attr, val, file, more;
-    string current_content = "none";
-    string current_attrs = "none";
-    void* aint=getline(path, attr, '/');
-    void* vint=getline(path, val, '/');
-    void* fint=getline(path, file, '/');
-    void* mint=getline(path, more, '/');
-    bool loop = true;
-    while(loop) {
-        loop = false;
-        string content = database_getvals("attrs");
-        if(aint) {
-            if(content_has(content, attr)) {
-                current_attrs += ":";
-                current_attrs += attr; 
-                content = database_getvals(attr);
-                if(vint) {
-                    if(content_has(content, val) || (attr=="tags")) {
-                        string dir_content = database_getval(attr, val);
-                        if(current_content!="none") {
-                            dir_content = intersect(current_content, dir_content);
-                        }
-                        string attrs_content = database_getvals("attrs");
-                        if(fint) {
-                            if(content_has(attrs_content, file)) {
-                                //repeat with aint = fint, vint = mint, etc
-                                aint = fint;
-                                attr = file;
-                                vint = mint;
-                                val = more;
-                                fint = getline(path, file, '/');
-                                mint = getline(path, more, '/');
-                                current_content = dir_content;
-                                loop = true;
-                            }
-                        } else {
-                            // /attr/val dir
-                            sprintf(msg, "%s, %s\n\n\n\n\n\n", attrs_content.c_str(), current_attrs.c_str());
-                            log_msg(msg);
-                            attrs_content = subtract(attrs_content, current_attrs);
-                            dir_pop_buf(buf, filler, dir_content, true);
-                            dir_pop_buf(buf, filler, attrs_content, false);
-                        }  
-                    } 
-                } else { 
-                    // /attr dir
-                    dir_pop_buf(buf, filler, content, false);
-                }
-            }
-        } else {
-            dir_pop_buf(buf, filler, content, false);
-        }
-    }
-}
-
-static int xmp_readdir(const char *c_path, void *buf, fuse_fill_dir_t filler,off_t offset, struct fuse_file_info *fi) {
-
-    sprintf(msg, "Khan Read directory: %s\n", c_path);
-    log_msg(msg);
-    filler(buf, ".", NULL, 0);
-    filler(buf, "..", NULL, 0);
-    string pre_processed = c_path+1;
-    string after = resolve_selectors(pre_processed);
-    stringstream path(after);
-    populate_readdir_buffer(buf, filler, path);
-    return 0;
-}
-
-int khan_open(const char *path, struct fuse_file_info *fi) {
-    sprintf(msg, "Khan Open directory %s\n ", path);
-    log_msg(msg);
-    int retstat = 0;
-    int fd;
-    path = basename(strdup(path));
-    //cout << "in khan_open with file " << path << endl << flush;
-    // get file id
-    string fileid = database_getval("name", path);
-    // get server 
-    string server = database_getval(fileid, "server");
-    //cout << fileid << " " << server << endl << flush;
-    if(server == "cloud") {
-        //cout << "looking at cloud" << endl << flush; 
-        string long_path = "/tmp/";
-        long_path += path;
-        //cout << "downloading to "<< long_path << endl << flush;
-        //cloud_download(path, long_path);
-    }
-    return 0;
-}
-
-
-int xmp_access(const char *path, int mask)
-{
-
-    sprintf(msg, "Khan Access: %s", path);
-    log_msg(msg);
-    char *path_copy=strdup(path);
-    if(strcmp(path,"/")==0) {
-        log_msg("at root");
-        return 0;
-    }
-    //  if(strcmp(path,"/")==0) {
-    log_msg("at root\n");
-    return 0;
-    //  }
-
-    string dirs=database_getval("alldirs","paths");
-    string temptok="";
-    stringstream dd(dirs);
-    while(getline(dd,temptok,':')){
-        if(strcmp(temptok.c_str(),path)==0){
-            return 0;
-        }
-    }
-
-    int c=0;
-    for(int i=0; path[i]!='\0'; i++){
-        if(path[i]=='/') c++;
-    }
-
-    //decompose path
-    stringstream ss0(path+1);
-    string type, attr, val, file, more;
-    void* tint=getline(ss0, type, '/');
-    void* fint=getline(ss0, file, '/');
-    void* mint=getline(ss0, more, '/');
-    int reta=0;
-
-    //check for filetype
-    if(tint){
-        string types = database_getval("allfiles","types");
-        stringstream ss(types.c_str());
-        string token;
-        while(getline(ss,token,':')){
-            if(strcmp(type.c_str(),token.c_str())==0){
-                reta=1;
-            }
-        }
-        int found=0;
-
-        do{
-            //get attr and val
-            found=0;
-            void *aint=fint;
-            string attr=file;
-            void *vint=mint;
-            string val=more;
-            fint=getline(ss0, file, '/');
-            mint=getline(ss0, more, '/');
-
-            //check for attr
-            if(reta && aint) {
-                //cout << attr << endl;
-                string attrs= database_getval(type,"attrs");
-                stringstream ss3(attrs.c_str());
-                reta=0;
-                while(getline(ss3,token,':')){
-                    if(strcmp(attr.c_str(), token.c_str())==0){
-                        reta=1;
-                    }
-                }
-
-                //check for val
-                if(reta && vint) {
-                    cout << val << endl;
-                    if(strcmp(attr.c_str(),("all_"+type+"s").c_str())==0) {
-                        clock_gettime(CLOCK_REALTIME,&stop);
-                        time_spent = (stop.tv_sec-start.tv_sec)+(stop.tv_nsec-start.tv_nsec)/BILLION; tot_time += time_spent;;
-                        access_avg_time=(access_avg_time*(access_calls-1)+time_spent)/access_calls;
+                            } else {
+                                // /attr/val dir
+                                dir_pop_stbuf(stbuf, dir_content+attrs_content);
+                                return 0;
+                            }  
+                        } 
+                    } else { 
+                        // /attr dir
+                        dir_pop_stbuf(stbuf, content);
                         return 0;
                     }
-                    string vals=database_getvals(attr);
-                    stringstream ss4(vals.c_str());
+                }
+            } else {
+                string types=database_getvals("attrs");
+                dir_pop_stbuf(stbuf, types);
+                return 0;
+            }
+        }
+        return -2;
+    }
+
+    static int khan_getattr(const char *c_path, struct stat *stbuf) {
+
+        //cout << "started get attr" << endl << flush;
+        string pre_processed = c_path+1;
+        if(pre_processed == ".DS_Store") {
+            file_pop_stbuf(stbuf, pre_processed);
+            return 0;
+        }
+        //cout << "starting to resolve selectors" << endl << flush;
+        string after = resolve_selectors(pre_processed);
+        stringstream path(after);
+        //cout << "working to pop buffer" << endl << flush;
+        //file_pop_stbuf(stbuf, "test");
+        //int ret = 0;
+        int ret = populate_getattr_buffer(stbuf, path);
+        //cout << "ended get attr" << endl << flush;
+        return ret;
+    }
+
+    void dir_pop_buf(void* buf, fuse_fill_dir_t filler, string content, bool convert) {
+
+        sprintf(msg, "Inside dir_pop_buf: %s\n", content.c_str());
+        log_msg(msg);
+
+        vector<string> contents = split(content, ":");
+        for(int i=0; i<contents.size(); i++) {
+            if(convert) {
+                string filename = database_getval(contents[i].c_str(), "name");
+
+                sprintf(msg, "dir_pop_buf loop%s\n", filename.c_str());
+                log_msg(msg);
+
+                filler(buf, filename.c_str(), NULL, 0);
+            } else {
+                filler(buf, contents[i].c_str(), NULL, 0);
+            }
+        }
+    }
+
+
+    void populate_readdir_buffer(void* buf, fuse_fill_dir_t filler, stringstream &path) {
+
+        log_msg("Populate Read Dir Buffer\n");
+        sprintf(msg, "Path is %s\n", path.str().c_str());
+        log_msg(msg);
+        string attr, val, file, more;
+        string current_content = "none";
+        string current_attrs = "none";
+        void* aint=getline(path, attr, '/');
+        void* vint=getline(path, val, '/');
+        void* fint=getline(path, file, '/');
+        void* mint=getline(path, more, '/');
+        bool loop = true;
+        while(loop) {
+            loop = false;
+            string content = database_getvals("attrs");
+            if(aint) {
+                if(content_has(content, attr)) {
+                    current_attrs += ":";
+                    current_attrs += attr; 
+                    content = database_getvals(attr);
+                    if(vint) {
+                        if(content_has(content, val) || (attr=="tags")) {
+                            string dir_content = database_getval(attr, val);
+                            if(current_content!="none") {
+                                dir_content = intersect(current_content, dir_content);
+                            }
+                            string attrs_content = database_getvals("attrs");
+                            if(fint) {
+                                if(content_has(attrs_content, file)) {
+                                    //repeat with aint = fint, vint = mint, etc
+                                    aint = fint;
+                                    attr = file;
+                                    vint = mint;
+                                    val = more;
+                                    fint = getline(path, file, '/');
+                                    mint = getline(path, more, '/');
+                                    current_content = dir_content;
+                                    loop = true;
+                                }
+                            } else {
+                                // /attr/val dir
+                                sprintf(msg, "%s, %s\n\n\n\n\n\n", attrs_content.c_str(), current_attrs.c_str());
+                                log_msg(msg);
+                                attrs_content = subtract(attrs_content, current_attrs);
+                                dir_pop_buf(buf, filler, dir_content, true);
+                                dir_pop_buf(buf, filler, attrs_content, false);
+                            }  
+                        } 
+                    } else { 
+                        // /attr dir
+                        dir_pop_buf(buf, filler, content, false);
+                    }
+                }
+            } else {
+                dir_pop_buf(buf, filler, content, false);
+            }
+        }
+    }
+
+    static int xmp_readdir(const char *c_path, void *buf, fuse_fill_dir_t filler,off_t offset, struct fuse_file_info *fi) {
+
+        sprintf(msg, "Khan Read directory: %s\n", c_path);
+        log_msg(msg);
+        filler(buf, ".", NULL, 0);
+        filler(buf, "..", NULL, 0);
+        string pre_processed = c_path+1;
+        string after = resolve_selectors(pre_processed);
+        stringstream path(after);
+        populate_readdir_buffer(buf, filler, path);
+        return 0;
+    }
+
+    int khan_open(const char *path, struct fuse_file_info *fi) {
+        sprintf(msg, "Khan Open directory %s\n ", path);
+        log_msg(msg);
+        int retstat = 0;
+        int fd;
+        path = basename(strdup(path));
+        //cout << "in khan_open with file " << path << endl << flush;
+        // get file id
+        string fileid = database_getval("name", path);
+        // get server 
+        string server = database_getval(fileid, "server");
+        //cout << fileid << " " << server << endl << flush;
+        if(server == "cloud") {
+            //cout << "looking at cloud" << endl << flush; 
+            string long_path = "/tmp/";
+            long_path += path;
+            //cout << "downloading to "<< long_path << endl << flush;
+            //cloud_download(path, long_path);
+        }
+        return 0;
+    }
+
+
+    int xmp_access(const char *path, int mask)
+    {
+
+        sprintf(msg, "Khan Access: %s", path);
+        log_msg(msg);
+        char *path_copy=strdup(path);
+        if(strcmp(path,"/")==0) {
+            log_msg("at root");
+            return 0;
+        }
+        //  if(strcmp(path,"/")==0) {
+        log_msg("at root\n");
+        return 0;
+        //  }
+
+        string dirs=database_getval("alldirs","paths");
+        string temptok="";
+        stringstream dd(dirs);
+        while(getline(dd,temptok,':')){
+            if(strcmp(temptok.c_str(),path)==0){
+                return 0;
+            }
+        }
+
+        int c=0;
+        for(int i=0; path[i]!='\0'; i++){
+            if(path[i]=='/') c++;
+        }
+
+        //decompose path
+        stringstream ss0(path+1);
+        string type, attr, val, file, more;
+        void* tint=getline(ss0, type, '/');
+        void* fint=getline(ss0, file, '/');
+        void* mint=getline(ss0, more, '/');
+        int reta=0;
+
+        //check for filetype
+        if(tint){
+            string types = database_getval("allfiles","types");
+            stringstream ss(types.c_str());
+            string token;
+            while(getline(ss,token,':')){
+                if(strcmp(type.c_str(),token.c_str())==0){
+                    reta=1;
+                }
+            }
+            int found=0;
+
+            do{
+                //get attr and val
+                found=0;
+                void *aint=fint;
+                string attr=file;
+                void *vint=mint;
+                string val=more;
+                fint=getline(ss0, file, '/');
+                mint=getline(ss0, more, '/');
+
+                //check for attr
+                if(reta && aint) {
+                    //cout << attr << endl;
+                    string attrs= database_getval(type,"attrs");
+                    stringstream ss3(attrs.c_str());
                     reta=0;
-                    while(getline(ss4,token,':')){
-                        cout << val << token << endl;
-                        if(strcmp(val.c_str(), token.c_str())==0){
+                    while(getline(ss3,token,':')){
+                        if(strcmp(attr.c_str(), token.c_str())==0){
                             reta=1;
                         }
                     }
 
-                    //check for file
-                    if(reta && fint) {
-                        cout << file << endl;
-                        string files=database_getval(attr, val);
-                        stringstream ss4(files.c_str());
-                        if(!mint) {
-                            reta=0;
-                            while(getline(ss4,token,':')){
-                                token=database_getval(token,"name");
-                                if(strcmp(file.c_str(), token.c_str())==0){
-                                    reta=1;
-                                }
+                    //check for val
+                    if(reta && vint) {
+                        cout << val << endl;
+                        if(strcmp(attr.c_str(),("all_"+type+"s").c_str())==0) {
+                            clock_gettime(CLOCK_REALTIME,&stop);
+                            time_spent = (stop.tv_sec-start.tv_sec)+(stop.tv_nsec-start.tv_nsec)/BILLION; tot_time += time_spent;;
+                            access_avg_time=(access_avg_time*(access_calls-1)+time_spent)/access_calls;
+                            return 0;
+                        }
+                        string vals=database_getvals(attr);
+                        stringstream ss4(vals.c_str());
+                        reta=0;
+                        while(getline(ss4,token,':')){
+                            cout << val << token << endl;
+                            if(strcmp(val.c_str(), token.c_str())==0){
+                                reta=1;
                             }
-                            stringstream ss5(attrs.c_str());
-                            while(getline(ss5,token,':')){
-                                if(strcmp(file.c_str(),token.c_str())==0){
-                                    reta=1;
+                        }
+
+                        //check for file
+                        if(reta && fint) {
+                            cout << file << endl;
+                            string files=database_getval(attr, val);
+                            stringstream ss4(files.c_str());
+                            if(!mint) {
+                                reta=0;
+                                while(getline(ss4,token,':')){
+                                    token=database_getval(token,"name");
+                                    if(strcmp(file.c_str(), token.c_str())==0){
+                                        reta=1;
+                                    }
                                 }
+                                stringstream ss5(attrs.c_str());
+                                while(getline(ss5,token,':')){
+                                    if(strcmp(file.c_str(),token.c_str())==0){
+                                        reta=1;
+                                    }
+                                }
+                            } else {
+                                found=1;
                             }
-                        } else {
-                            found=1;
                         }
                     }
                 }
-            }
-        }while(found);
+            }while(found);
+        }
+
+        if(reta && !getline(ss0, val, '/')) {
+            return 0;
+        }
+        path=append_path(path);
+        int ret = access(path, mask);
+        return ret;
     }
 
-    if(reta && !getline(ss0, val, '/')) {
+
+    static int xmp_mknod(const char *path, mode_t mode, dev_t rdev) {
+        log_msg("in xmp_mknod\n");
+
+        path=append_path2(basename(strdup(path)));
+        sprintf(msg,"khan_mknod, path=%s\n",path);
+        log_msg(msg);
+        int res;
+        if (S_ISFIFO(mode))
+            res = mkfifo(path, mode);
+        else
+            res = mknod(path, mode, rdev);
+        if (res == -1) {
+            fprintf(stderr, "\nmknod error \n");
+            return -errno;
+        }
         return 0;
     }
-    path=append_path(path);
-    int ret = access(path, mask);
-    return ret;
-}
 
 
-static int xmp_mknod(const char *path, mode_t mode, dev_t rdev) {
-    log_msg("in xmp_mknod\n");
-
-    path=append_path2(basename(strdup(path)));
-    sprintf(msg,"khan_mknod, path=%s\n",path);
-    log_msg(msg);
-    int res;
-    if (S_ISFIFO(mode))
-        res = mkfifo(path, mode);
-    else
-        res = mknod(path, mode, rdev);
-    if (res == -1) {
-        fprintf(stderr, "\nmknod error \n");
-        return -errno;
-    }
-    return 0;
-}
-
-
-static int xmp_mkdir(const char *path, mode_t mode) {
-    struct timespec mkdir_start, mkdir_stop;
-    sprintf(msg, "Khan mkdir: %s\n", path);
-    log_msg(msg);
-    string strpath=path;
-    if(strpath.find("localize")!=string::npos) {
-        if(strpath.find("usage")!=string::npos) {
-            usage_localize();
-        } else {
-            //cout << "LOCALIZING" << endl;
-            //cout << strpath << endl;
-            //check location
-            string filename = "winter.mp3";
-            string fileid = database_getval("name", filename);
-            string location = get_location(fileid);
-            string server = database_getval(fileid, "server");
-            //cout << "======== LOCATION: " << location << endl << endl;
-            //if not current
-            if(location.compare(server)!=0) {
-                //  move to new location
-                //cout << " MUST MOVE "<<server<<" TO "<<location<<endl;
-                database_setval(fileid,"server",location);
-                string from = server + "/" + filename;
-                string to = location + "/" + filename;
-                string command = "mv " + from + " " + to;
-                FILE* stream=popen(command.c_str(),"r");
-                pclose(stream);
-            }
-        }
-        //cout << "LOCALIZATION TIME:" << localize_time << endl <<endl;
-        return -1;
-    }
-    if(strpath.find("stats")!=string::npos){
-        //print stats and reset
-        ofstream stfile;
-        stfile.open(stats_file.c_str(), ofstream::out);
-        stfile << "TOT TIME    :" << tot_time << endl;
-        stfile << "Vold Calls   :" << vold_calls << endl;
-        stfile << "     Avg Time:" << vold_avg_time << endl;
-        stfile << "Readdir Calls:" << readdir_calls << endl;
-        stfile << "     Avg Time:" << readdir_avg_time << endl;
-        stfile << "Access Calls :" << access_calls << endl;
-        stfile << "     Avg Time:" << access_avg_time << endl;
-        stfile << "Read Calls   :" << read_calls << endl;
-        stfile << "     Avg Time:" << read_avg_time << endl;
-        stfile << "Getattr Calls:" << getattr_calls << endl;
-        stfile << "     Avg Time:" << getattr_avg_time << endl;
-        stfile << "Write Calls  :" << write_calls << endl;
-        stfile << "     Avg Time:" << write_avg_time << endl;
-        stfile << "Create Calls :" << create_calls << endl;
-        stfile << "     Avg Time:" << create_avg_time << endl;
-        stfile << "Rename Calls :" << rename_calls << endl;
-        stfile << "     Avg Time:" << rename_avg_time << endl;
-        stfile.close();
-        //cout << "TOT TIME    :" << tot_time << endl;
-        //cout << "Vold Calls   :" << vold_calls << endl;
-        //cout << "     Avg Time:" << vold_avg_time << endl;
-        //cout << "Readdir Calls:" << readdir_calls << endl;
-        //cout << "     Avg Time:" << readdir_avg_time << endl;
-        //cout << "Access Calls :" << access_calls << endl;
-        //cout << "     Avg Time:" << access_avg_time << endl;
-        //cout << "Read Calls   :" << read_calls << endl;
-        //cout << "     Avg Time:" << read_avg_time << endl;
-        //cout << "Getattr Calls:" << getattr_calls << endl;
-        //cout << "     Avg Time:" << getattr_avg_time << endl;
-        //cout << "Write Calls  :" << write_calls << endl;
-        //cout << "     Avg Time:" << write_avg_time << endl;
-        //cout << "Create Calls :" << create_calls << endl;
-        //cout << "     Avg Time:" << create_avg_time << endl;
-        //cout << "Rename Calls :" << rename_calls << endl;
-        //cout << "     Avg Time:" << rename_avg_time << endl;
-        vold_calls=0;
-        readdir_calls=0;
-        access_calls=0;
-        getattr_calls=0;
-        read_calls=0;
-        write_calls=0;
-        create_calls=0;
-        rename_calls=0;
-        tot_time=0;
-        vold_avg_time=0;
-        readdir_avg_time=0;
-        access_avg_time=0;
-        getattr_avg_time=0;
-        read_avg_time=0;
-        write_avg_time=0;
-        create_avg_time=0;
-        rename_avg_time=0;
-        return -1;
-    }
-
-    log_msg("xmp_mkdir\n");
-    sprintf(msg,"khan_mkdir for path=%s\n",path);
-    log_msg(msg);
-    struct stat *st;
-    if(khan_getattr(path, st)<0) {
-        //add path
-        database_setval("alldirs","paths",path);
-        //and break into attr/val pair and add to vold
-    } else {
-        log_msg("Directory exists\n");
-    }
-    return 0;
-}
-
-
-static int xmp_readlink(const char *path, char *buf, size_t size) {
-    sprintf(msg, "Khan Read Link: %s\n", path);
-    log_msg(msg);
-    //TODO: handle in vold somehow
-    log_msg("In readlink\n");
-    int res = -1;
-    path=append_path2(basename(strdup(path)));
-    //res = readlink(path, buf, size - 1);
-    if (res == -1)
-        return -errno;
-    buf[res] = '\0';
-    return 0;
-}
-
-
-static int xmp_unlink(const char *path) {
-    sprintf(msg, "Khan Unlink Directory: %s", path);
-    log_msg(msg);
-    //TODO: handle in vold somehow
-    int res;
-    string fileid=database_getval("name",basename(strdup(path)));
-
-    string fromext=database_getval(fileid,"ext");
-    string file=append_path2(basename(strdup(path)));
-    string attrs=database_getval(fromext,"attrs");
-    //cout << fromext <<  fileid << endl;
-    //cout<<"HERE!"<<endl;
-    database_remove_val(fileid,"attrs","all_"+fromext+"s");
-    //cout<<"THERE!"<<endl;
-    //database_remove_val("all_"+fromext+"s",strdup(basename(strdup(from))),fileid);
-    //cout<<"WHERE!"<<endl;
-    string token="";
-    stringstream ss2(attrs.c_str());
-    while(getline(ss2,token,':')){
-        if(strcmp(token.c_str(),"null")!=0){
-            string cmd=database_getval(token+"gen","command");
-            string msg2=(cmd+" "+file).c_str();
-            FILE* stream=popen(msg2.c_str(),"r");
-            if(fgets(msg,200,stream)!=0){
-                database_remove_val(fileid,token,msg);
-            }
-            pclose(stream);
-        }
-    }
-
-    path=append_path2(basename(strdup(path)));
-    res = unlink(path);
-    if (res == -1)
-        return -errno;
-    return 0;
-}
-
-
-static int xmp_rmdir(const char *path) {
-    sprintf(msg, "Khan Remove Directory: %s\n", path);
-    log_msg(msg);
-    //if hardcoded, just remove
-    database_remove_val("alldirs","paths",path);
-
-    //if exists
-    //get contained files
-    //get attrs+vals from path
-    //unset files attrs
-    //if entire attr, remove attr
-
-    return 0;
-}
-
-static int xmp_symlink(const char *from, const char *to) {
-    sprintf(msg, "Khan Sym Link Directory From: %s  To: %s", from, to);
-    log_msg(msg);
-    //TODO: handle in vold somehow
-    int res=-1;
-    from=append_path2(basename(strdup(from)));
-    to=append_path2(basename(strdup(to)));
-    sprintf(msg,"In symlink creating a symbolic link from %s to %s\n",from, to);
-    log_msg(msg);
-    //res = symlink(from, to);
-    if (res == -1)
-        return -errno;
-    return 0;
-}
-
-static int xmp_rename(const char *from, const char *to) {
-    sprintf(msg, "Khan Rename Directory From: %s To: %s", from , to);
-    log_msg(msg);
-    //cout << endl << endl << endl << "Entering Rename Function" << endl;
-    double start_time = 0;
-    struct timeval start_tv;
-    gettimeofday(&start_tv, NULL); 
-    start_time = start_tv.tv_sec;
-    start_time += (start_tv.tv_usec/1000000.0);
-    start_times << fixed << start_time << endl << flush;
-    string src = basename(strdup(from));
-    string dst = basename(strdup(to));
-    string fileid = database_getval("name", src);
-    //cout << fileid << endl;
-    database_remove_val(fileid,"name",src);
-    //cout << src << endl;
-    database_setval(fileid,"name",dst);
-    //cout << dst << endl;
-    string orig_path = append_path2(src);
-    string orig_loc = database_getval(fileid,"location");
-    map_path(resolve_selectors(to), fileid);
-    string new_path = append_path2(dst);
-    string new_loc = database_getval(fileid,"location");
-    if(new_loc!=orig_loc) {
-        if(new_loc=="google_music") {
-            //upload
-            //cloud_upload(orig_path);
-        } else if(orig_loc=="google_music") {
-            //download
-            //cloud_download(src, new_path);
-        } else {
-            //file system rename
-            rename(orig_path.c_str(), new_path.c_str());
-        }
-    }
-    double rename_time = 0;
-    struct timeval end_tv;
-    gettimeofday(&end_tv, NULL); 
-    rename_time = end_tv.tv_sec - start_tv.tv_sec;
-    rename_time += (end_tv.tv_usec - start_tv.tv_usec) / 1000000.0;
-    rename_times << fixed << rename_time << endl << flush;
-    //cout << "Exiting Rename Function" << endl << endl << endl << endl;
-    return 0;
-}
-
-static int xmp_link(const char *from, const char *to) {
-    sprintf(msg, "Khan Link: From: %s To: %s\n", from , to);
-    log_msg(msg);
-    //TODO:handle in vold somehow...
-    int retstat = 0;
-    from=append_path2(basename(strdup(from)));
-    to=append_path2(basename(strdup(to)));
-    sprintf(msg,"khan_link initial path=\"%s\", initial to=\"%s\")\n",from, to);
-    log_msg(msg);
-    retstat = link(from,to);
-    return retstat;
-}
-
-static int xmp_chmod(const char *path, mode_t mode) {
-    sprintf(msg, "Khan Chmod Directory: %s\n", path);
-    log_msg(msg);
-
-    int res;
-    path=append_path2(basename(strdup(path)));
-    sprintf(msg, "In chmod for: %s\n",path);
-    log_msg(msg);
-    res = chmod(path, mode);
-#ifdef APPLE
-    res = chmod(path, mode);
-#else
-    res = chmod(path, mode);
-#endif
-    if (res == -1)
-        return -errno;
-    return 0;
-}
-
-static int xmp_chown(const char *path, uid_t uid, gid_t gid) {
-    sprintf(msg, "Khan Chown Directory: %s\n", path);
-    log_msg(msg);
-    int res;
-    path=append_path2(basename(strdup(path)));
-    sprintf(msg,"In chown for : %s\n",path);
-    log_msg(msg);
-    res = lchown(path,uid, gid);
-    if (res == -1)
-        return -errno;
-    return 0;
-}
-
-static int xmp_truncate(const char *path, off_t size) {
-    //update for vold?
-    sprintf(msg, "Khan Truncate Directory: %s", path);
-    log_msg(msg);
-    int res;
-    path++;
-    res = truncate(path, size);
-    if (res == -1)
-        return -errno;
-    return 0;
-}
-
-static int xmp_utimens(const char *path, const struct timespec ts[2]) {
-    log_msg("in utimens\n");
-    int res;
-    struct timeval tv[2];
-    path=append_path2(basename(strdup(path)));
-    sprintf(msg,"in utimens for path : %s\n",path);
-    log_msg(msg);
-    tv[0].tv_sec = ts[0].tv_sec;
-    tv[0].tv_usec = ts[0].tv_nsec / 1000;
-    tv[1].tv_sec = ts[1].tv_sec;
-    tv[1].tv_usec = ts[1].tv_nsec / 1000;
-    res = utimes(path, tv);
-    if (res == -1)
-        return -errno;
-    return 0;
-}
-
-static int xmp_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
-    int res = 0;
-    sprintf(msg, "Khan xmp_read: %s", path);
-    log_msg(msg);
-    path=append_path2(basename(strdup(path)));
-    //cout<<"Converted Path: "<<path<<endl<<endl<<endl<<endl;
-
-    FILE *thefile = fopen(path, "r");
-    if (thefile != NULL){
-        fseek(thefile, offset, SEEK_SET);
-        res = fread(buf, 1, size, thefile);
-        //cout << "READ THIS MANY"<<endl<<res<<endl<<endl<<endl<<endl<<endl;
-
-        if (res == -1)
-            res = -errno;
-        fclose(thefile);
-    } else {
-        res = -errno;
-    }
-    return res;
-}
-
-static int xmp_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
-    sprintf(msg, "Khan xmp_write: %s\n", path);
-    log_msg(msg);
-    int fd;
-    int res;
-
-    path=append_path2(basename(strdup(path)));
-    (void) fi;
-    fd = open(path, O_WRONLY);
-    if (fd == -1){
-        return errno;
-    }
-    res = pwrite(fd, buf, size, offset);
-    if (res == -1)
-        res = errno;
-    close(fd);
-    return res;
-}
-
-static int xmp_statfs(const char *path, struct statvfs *stbuf) {
-    /* Pass the call through to the underlying system which has the media. */
-    sprintf(msg, "Khan xmp_statfs: %s\n", path);
-    log_msg(msg);
-    int res = statvfs(path, stbuf);
-    if (res != 0) {
-        fprintf(log, "statfs error for %s\n",path);
-        return errno;
-    }
-    return 0;
-}
-
-static int xmp_release(const char *path, struct fuse_file_info *fi) {
-    /* Just a stub. This method is optional and can safely be left unimplemented. */
-    fprintf(log, "in xmp_release with path %s\n", path);
-    return 0;
-}
-
-static int xmp_fsync(const char *path, int isdatasync,struct fuse_file_info *fi) {
-    /* Just a stub. This method is optional and can safely be left unimplemented. */
-    fprintf(log, "in xmp_fsync with path %s\n", path);
-    return 0;
-}
-
-
-void *khan_init(struct fuse_conn_info *conn) {
-
-    log_msg("khan_init() called!\n");
-    sprintf(msg,"khan_root is : %s\n",servers.at(0).c_str());
-    log_msg(msg);
-    if(chdir(servers.at(0).c_str())<0) {
-        sprintf(msg,"could not change directory ,errno %s\n",strerror(errno)); 
+    static int xmp_mkdir(const char *path, mode_t mode) {
+        struct timespec mkdir_start, mkdir_stop;
+        sprintf(msg, "Khan mkdir: %s\n", path);
         log_msg(msg);
-        perror(servers.at(0).c_str());
-    }
-    sprintf(msg,"AT THE END OF INIT\n"); 
-    log_msg(msg);
-    return KHAN_DATA;
-}
-
-
-
-int khan_flush (const char * path, struct fuse_file_info * info ) {
-    //cout << "=============IN KHAN FLUSH!!!!!!!!" << endl << endl;
-
-    sprintf(msg, "Khan flush: %s\n", path);
-    log_msg(msg);
-    string filename = basename(strdup(path));
-    string fileid=database_getval("name",filename);
-    string server=database_getval(fileid,"server");
-    string file_path = database_getval(fileid, "file_path");
-
-    process_file(server, fileid, file_path);
-    return 0;
-}
-
-
-int khan_create(const char *path, mode_t mode, struct fuse_file_info *fi)
-{
-    create_calls++;
-
-    sprintf(msg, "Khan xmp_create: %s\n", path);
-    log_msg(msg);
-
-    string fileid=database_getval("name",basename(strdup(path)));
-    if(strcmp(fileid.c_str(),"null")==0){
-        fileid=database_setval("null","name",basename(strdup(path)));
-        database_setval(fileid, "server", servers.at(0));
-        string ext = strrchr(basename(strdup(path)),'.')+1;
-        database_setval(fileid, "ext", ext);
-    }
-    string server = database_getval(fileid, "server");
-
-    process_file(server, fileid, "");
-
-    map_path(resolve_selectors(path), fileid);
-
-    return 0;
-}
-
-string bin2hex(const char* input, size_t size)
-{
-    std::string res;
-    const char hex[] = "0123456789ABCDEF";
-    for(int i=0; i<size; i++)
-    {
-        unsigned char c = input[i];
-        res += (char)(c+10);
-        //res += hex[c >> 4];
-        //res += hex[c & 0xf];
-    }
-
-    return res;
-}
-
-string hex2bin(string in) {
-    for(int i=0; i<in.length(); i++) {
-        in[i]-=10;
-    }
-    return in;
-}
-
-
-int khan_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *fi)
-{
-    int retstat = 0;
-    sprintf(msg,"khan_fgetattr(path=%s \n",path);
-    log_msg(msg);
-    retstat = fstat(fi->fh, statbuf);
-    return retstat;
-}
-#ifdef APPLE
-static int xmp_setxattr(const char *path, const char *name, const char *value,  size_t size, int flags, uint32_t param) {
-#else
-    static int xmp_setxattr(const char *path, const char *name, const char *value,  size_t size, int flags) {
-#endif
-        string attr = bin2hex(value, size);
-        sprintf(msg, "setxattr call\npath:%sname:%svalue:%s\n\n\n\n\n\n\n\n\n\n", path, name, value);
-        log_msg(msg);
-        string xpath = "xattr:";
-        xpath += path;
-        redis_setval(xpath, name, attr.c_str());
-        sprintf(msg, "setxattr call\n %s, %s, %s\n\n\n\n\n\n\n\n\n\n", xpath.c_str(), name, attr.c_str());
-        log_msg(msg);
-        return 0;
-    }
-#ifdef APPLE
-    static int xmp_getxattr(const char *path, const char *name, char *value, size_t size, uint32_t param) {
-#else
-        static int xmp_getxattr(const char *path, const char *name, char *value, size_t size) {
-#endif
-            fprintf(stderr, "getxattr call\n %s, %s, %s\n", path, name, value);
-            string xpath = "xattr:";
-            xpath += path;
-            string db_val = redis_getval( xpath, name);
-            sprintf(msg, "getxattr call\npath:%s\nname:%s\nvalue:%s\nsize:%zd\n\n\n\n\n", xpath.c_str(), name, db_val.c_str(), size);
-            log_msg(msg);
-            if(db_val != "null") {
-                db_val = hex2bin(db_val);
-                if(value==NULL) {
-                    errno = 0;
-                    return db_val.length();
+        string strpath=path;
+        if(strpath.find("localize")!=string::npos) {
+            if(strpath.find("usage")!=string::npos) {
+                usage_localize();
+            } else {
+                //cout << "LOCALIZING" << endl;
+                //cout << strpath << endl;
+                //check location
+                string filename = "winter.mp3";
+                string fileid = database_getval("name", filename);
+                string location = get_location(fileid);
+                string server = database_getval(fileid, "server");
+                //cout << "======== LOCATION: " << location << endl << endl;
+                //if not current
+                if(location.compare(server)!=0) {
+                    //  move to new location
+                    //cout << " MUST MOVE "<<server<<" TO "<<location<<endl;
+                    database_setval(fileid,"server",location);
+                    string from = server + "/" + filename;
+                    string to = location + "/" + filename;
+                    string command = "mv " + from + " " + to;
+                    FILE* stream=popen(command.c_str(),"r");
+                    pclose(stream);
                 }
-                memcpy(value, db_val.c_str(), size);
-                size_t num = snprintf(value, size, "%s", db_val.c_str());
-                sprintf(msg, "returned\nstring:%s\ncount:%zd\n\n", value, num);
-                log_msg(msg);
-                errno = 0;
-                return size;
             }
-            errno = 1;
+            //cout << "LOCALIZATION TIME:" << localize_time << endl <<endl;
+            return -1;
+        }
+        if(strpath.find("stats")!=string::npos){
+            //print stats and reset
+            ofstream stfile;
+            stfile.open(stats_file.c_str(), ofstream::out);
+            stfile << "TOT TIME    :" << tot_time << endl;
+            stfile << "Vold Calls   :" << vold_calls << endl;
+            stfile << "     Avg Time:" << vold_avg_time << endl;
+            stfile << "Readdir Calls:" << readdir_calls << endl;
+            stfile << "     Avg Time:" << readdir_avg_time << endl;
+            stfile << "Access Calls :" << access_calls << endl;
+            stfile << "     Avg Time:" << access_avg_time << endl;
+            stfile << "Read Calls   :" << read_calls << endl;
+            stfile << "     Avg Time:" << read_avg_time << endl;
+            stfile << "Getattr Calls:" << getattr_calls << endl;
+            stfile << "     Avg Time:" << getattr_avg_time << endl;
+            stfile << "Write Calls  :" << write_calls << endl;
+            stfile << "     Avg Time:" << write_avg_time << endl;
+            stfile << "Create Calls :" << create_calls << endl;
+            stfile << "     Avg Time:" << create_avg_time << endl;
+            stfile << "Rename Calls :" << rename_calls << endl;
+            stfile << "     Avg Time:" << rename_avg_time << endl;
+            stfile.close();
+            //cout << "TOT TIME    :" << tot_time << endl;
+            //cout << "Vold Calls   :" << vold_calls << endl;
+            //cout << "     Avg Time:" << vold_avg_time << endl;
+            //cout << "Readdir Calls:" << readdir_calls << endl;
+            //cout << "     Avg Time:" << readdir_avg_time << endl;
+            //cout << "Access Calls :" << access_calls << endl;
+            //cout << "     Avg Time:" << access_avg_time << endl;
+            //cout << "Read Calls   :" << read_calls << endl;
+            //cout << "     Avg Time:" << read_avg_time << endl;
+            //cout << "Getattr Calls:" << getattr_calls << endl;
+            //cout << "     Avg Time:" << getattr_avg_time << endl;
+            //cout << "Write Calls  :" << write_calls << endl;
+            //cout << "     Avg Time:" << write_avg_time << endl;
+            //cout << "Create Calls :" << create_calls << endl;
+            //cout << "     Avg Time:" << create_avg_time << endl;
+            //cout << "Rename Calls :" << rename_calls << endl;
+            //cout << "     Avg Time:" << rename_avg_time << endl;
+            vold_calls=0;
+            readdir_calls=0;
+            access_calls=0;
+            getattr_calls=0;
+            read_calls=0;
+            write_calls=0;
+            create_calls=0;
+            rename_calls=0;
+            tot_time=0;
+            vold_avg_time=0;
+            readdir_avg_time=0;
+            access_avg_time=0;
+            getattr_avg_time=0;
+            read_avg_time=0;
+            write_avg_time=0;
+            create_avg_time=0;
+            rename_avg_time=0;
             return -1;
         }
 
-        static int xmp_listxattr(const char *path, char *list, size_t size) {
-            sprintf(msg, "listxattr call\n %s, %s\n\n", path, list);
+        log_msg("xmp_mkdir\n");
+        sprintf(msg,"khan_mkdir for path=%s\n",path);
+        log_msg(msg);
+        struct stat *st;
+        if(khan_getattr(path, st)<0) {
+            //add path
+            database_setval("alldirs","paths",path);
+            //and break into attr/val pair and add to vold
+        } else {
+            log_msg("Directory exists\n");
+        }
+        return 0;
+    }
+
+
+    static int xmp_readlink(const char *path, char *buf, size_t size) {
+        sprintf(msg, "Khan Read Link: %s\n", path);
+        log_msg(msg);
+        //TODO: handle in vold somehow
+        log_msg("In readlink\n");
+        int res = -1;
+        path=append_path2(basename(strdup(path)));
+        //res = readlink(path, buf, size - 1);
+        if (res == -1)
+            return -errno;
+        buf[res] = '\0';
+        return 0;
+    }
+
+
+    static int xmp_unlink(const char *path) {
+        sprintf(msg, "Khan Unlink Directory: %s", path);
+        log_msg(msg);
+        //TODO: handle in vold somehow
+        int res;
+        string fileid=database_getval("name",basename(strdup(path)));
+
+        string fromext=database_getval(fileid,"ext");
+        string file=append_path2(basename(strdup(path)));
+        string attrs=database_getval(fromext,"attrs");
+        //cout << fromext <<  fileid << endl;
+        //cout<<"HERE!"<<endl;
+        database_remove_val(fileid,"attrs","all_"+fromext+"s");
+        //cout<<"THERE!"<<endl;
+        //database_remove_val("all_"+fromext+"s",strdup(basename(strdup(from))),fileid);
+        //cout<<"WHERE!"<<endl;
+        string token="";
+        stringstream ss2(attrs.c_str());
+        while(getline(ss2,token,':')){
+            if(strcmp(token.c_str(),"null")!=0){
+                string cmd=database_getval(token+"gen","command");
+                string msg2=(cmd+" "+file).c_str();
+                FILE* stream=popen(msg2.c_str(),"r");
+                if(fgets(msg,200,stream)!=0){
+                    database_remove_val(fileid,token,msg);
+                }
+                pclose(stream);
+            }
+        }
+
+        path=append_path2(basename(strdup(path)));
+        res = unlink(path);
+        if (res == -1)
+            return -errno;
+        return 0;
+    }
+
+
+    static int xmp_rmdir(const char *path) {
+        sprintf(msg, "Khan Remove Directory: %s\n", path);
+        log_msg(msg);
+        //if hardcoded, just remove
+        database_remove_val("alldirs","paths",path);
+
+        //if exists
+        //get contained files
+        //get attrs+vals from path
+        //unset files attrs
+        //if entire attr, remove attr
+
+        return 0;
+    }
+
+    static int xmp_symlink(const char *from, const char *to) {
+        sprintf(msg, "Khan Sym Link Directory From: %s  To: %s", from, to);
+        log_msg(msg);
+        //TODO: handle in vold somehow
+        int res=-1;
+        from=append_path2(basename(strdup(from)));
+        to=append_path2(basename(strdup(to)));
+        sprintf(msg,"In symlink creating a symbolic link from %s to %s\n",from, to);
+        log_msg(msg);
+        //res = symlink(from, to);
+        if (res == -1)
+            return -errno;
+        return 0;
+    }
+
+    static int xmp_rename(const char *from, const char *to) {
+        sprintf(msg, "Khan Rename Directory From: %s To: %s", from , to);
+        log_msg(msg);
+        //cout << endl << endl << endl << "Entering Rename Function" << endl;
+        double start_time = 0;
+        struct timeval start_tv;
+        gettimeofday(&start_tv, NULL); 
+        start_time = start_tv.tv_sec;
+        start_time += (start_tv.tv_usec/1000000.0);
+        start_times << fixed << start_time << endl << flush;
+        string src = basename(strdup(from));
+        string dst = basename(strdup(to));
+        string fileid = database_getval("name", src);
+        //cout << fileid << endl;
+        database_remove_val(fileid,"name",src);
+        //cout << src << endl;
+        database_setval(fileid,"name",dst);
+        //cout << dst << endl;
+        string orig_path = append_path2(src);
+        string orig_loc = database_getval(fileid,"location");
+        map_path(resolve_selectors(to), fileid);
+        string new_path = append_path2(dst);
+        string new_loc = database_getval(fileid,"location");
+        if(new_loc!=orig_loc) {
+            if(new_loc=="google_music") {
+                //upload
+                //cloud_upload(orig_path);
+            } else if(orig_loc=="google_music") {
+                //download
+                //cloud_download(src, new_path);
+            } else {
+                //file system rename
+                rename(orig_path.c_str(), new_path.c_str());
+            }
+        }
+        double rename_time = 0;
+        struct timeval end_tv;
+        gettimeofday(&end_tv, NULL); 
+        rename_time = end_tv.tv_sec - start_tv.tv_sec;
+        rename_time += (end_tv.tv_usec - start_tv.tv_usec) / 1000000.0;
+        rename_times << fixed << rename_time << endl << flush;
+        //cout << "Exiting Rename Function" << endl << endl << endl << endl;
+        return 0;
+    }
+
+    static int xmp_link(const char *from, const char *to) {
+        sprintf(msg, "Khan Link: From: %s To: %s\n", from , to);
+        log_msg(msg);
+        //TODO:handle in vold somehow...
+        int retstat = 0;
+        from=append_path2(basename(strdup(from)));
+        to=append_path2(basename(strdup(to)));
+        sprintf(msg,"khan_link initial path=\"%s\", initial to=\"%s\")\n",from, to);
+        log_msg(msg);
+        retstat = link(from,to);
+        return retstat;
+    }
+
+    static int xmp_chmod(const char *path, mode_t mode) {
+        sprintf(msg, "Khan Chmod Directory: %s\n", path);
+        log_msg(msg);
+
+        int res;
+        path=append_path2(basename(strdup(path)));
+        sprintf(msg, "In chmod for: %s\n",path);
+        log_msg(msg);
+        res = chmod(path, mode);
+#ifdef APPLE
+        res = chmod(path, mode);
+#else
+        res = chmod(path, mode);
+#endif
+        if (res == -1)
+            return -errno;
+        return 0;
+    }
+
+    static int xmp_chown(const char *path, uid_t uid, gid_t gid) {
+        sprintf(msg, "Khan Chown Directory: %s\n", path);
+        log_msg(msg);
+        int res;
+        path=append_path2(basename(strdup(path)));
+        sprintf(msg,"In chown for : %s\n",path);
+        log_msg(msg);
+        res = lchown(path,uid, gid);
+        if (res == -1)
+            return -errno;
+        return 0;
+    }
+
+    static int xmp_truncate(const char *path, off_t size) {
+        //update for vold?
+        sprintf(msg, "Khan Truncate Directory: %s", path);
+        log_msg(msg);
+        int res;
+        path++;
+        res = truncate(path, size);
+        if (res == -1)
+            return -errno;
+        return 0;
+    }
+
+    static int xmp_utimens(const char *path, const struct timespec ts[2]) {
+        log_msg("in utimens\n");
+        int res;
+        struct timeval tv[2];
+        path=append_path2(basename(strdup(path)));
+        sprintf(msg,"in utimens for path : %s\n",path);
+        log_msg(msg);
+        tv[0].tv_sec = ts[0].tv_sec;
+        tv[0].tv_usec = ts[0].tv_nsec / 1000;
+        tv[1].tv_sec = ts[1].tv_sec;
+        tv[1].tv_usec = ts[1].tv_nsec / 1000;
+        res = utimes(path, tv);
+        if (res == -1)
+            return -errno;
+        return 0;
+    }
+
+    static int xmp_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
+        int res = 0;
+        sprintf(msg, "Khan xmp_read: %s", path);
+        log_msg(msg);
+        path=append_path2(basename(strdup(path)));
+        //cout<<"Converted Path: "<<path<<endl<<endl<<endl<<endl;
+
+        FILE *thefile = fopen(path, "r");
+        if (thefile != NULL){
+            fseek(thefile, offset, SEEK_SET);
+            res = fread(buf, 1, size, thefile);
+            //cout << "READ THIS MANY"<<endl<<res<<endl<<endl<<endl<<endl<<endl;
+
+            if (res == -1)
+                res = -errno;
+            fclose(thefile);
+        } else {
+            res = -errno;
+        }
+        return res;
+    }
+
+    static int xmp_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
+        sprintf(msg, "Khan xmp_write: %s\n", path);
+        log_msg(msg);
+        int fd;
+        int res;
+
+        path=append_path2(basename(strdup(path)));
+        (void) fi;
+        fd = open(path, O_WRONLY);
+        if (fd == -1){
+            return errno;
+        }
+        res = pwrite(fd, buf, size, offset);
+        if (res == -1)
+            res = errno;
+        close(fd);
+        return res;
+    }
+
+    static int xmp_statfs(const char *path, struct statvfs *stbuf) {
+        /* Pass the call through to the underlying system which has the media. */
+        sprintf(msg, "Khan xmp_statfs: %s\n", path);
+        log_msg(msg);
+        int res = statvfs(path, stbuf);
+        if (res != 0) {
+            fprintf(log, "statfs error for %s\n",path);
+            return errno;
+        }
+        return 0;
+    }
+
+    static int xmp_release(const char *path, struct fuse_file_info *fi) {
+        /* Just a stub. This method is optional and can safely be left unimplemented. */
+        fprintf(log, "in xmp_release with path %s\n", path);
+        return 0;
+    }
+
+    static int xmp_fsync(const char *path, int isdatasync,struct fuse_file_info *fi) {
+        /* Just a stub. This method is optional and can safely be left unimplemented. */
+        fprintf(log, "in xmp_fsync with path %s\n", path);
+        return 0;
+    }
+
+
+    void *khan_init(struct fuse_conn_info *conn) {
+
+        log_msg("khan_init() called!\n");
+        sprintf(msg,"khan_root is : %s\n",servers.at(0).c_str());
+        log_msg(msg);
+        if(chdir(servers.at(0).c_str())<0) {
+            sprintf(msg,"could not change directory ,errno %s\n",strerror(errno)); 
+            log_msg(msg);
+            perror(servers.at(0).c_str());
+        }
+        sprintf(msg,"AT THE END OF INIT\n"); 
+        log_msg(msg);
+        return KHAN_DATA;
+    }
+
+
+
+    int khan_flush (const char * path, struct fuse_file_info * info ) {
+        //cout << "=============IN KHAN FLUSH!!!!!!!!" << endl << endl;
+
+        sprintf(msg, "Khan flush: %s\n", path);
+        log_msg(msg);
+        string filename = basename(strdup(path));
+        string fileid=database_getval("name",filename);
+        string server=database_getval(fileid,"server");
+        string file_path = database_getval(fileid, "file_path");
+
+        process_file(server, fileid, file_path);
+        return 0;
+    }
+
+
+    int khan_create(const char *path, mode_t mode, struct fuse_file_info *fi)
+    {
+        create_calls++;
+
+        sprintf(msg, "Khan xmp_create: %s\n", path);
+        log_msg(msg);
+
+        string fileid=database_getval("name",basename(strdup(path)));
+        if(strcmp(fileid.c_str(),"null")==0){
+            fileid=database_setval("null","name",basename(strdup(path)));
+            database_setval(fileid, "server", servers.at(0));
+            string ext = strrchr(basename(strdup(path)),'.')+1;
+            database_setval(fileid, "ext", ext);
+        }
+        string server = database_getval(fileid, "server");
+
+        process_file(server, fileid, "");
+
+        map_path(resolve_selectors(path), fileid);
+
+        return 0;
+    }
+
+    string bin2hex(const char* input, size_t size)
+    {
+        std::string res;
+        const char hex[] = "0123456789ABCDEF";
+        for(int i=0; i<size; i++)
+        {
+            unsigned char c = input[i];
+            res += (char)(c+10);
+            //res += hex[c >> 4];
+            //res += hex[c & 0xf];
+        }
+
+        return res;
+    }
+
+    string hex2bin(string in) {
+        for(int i=0; i<in.length(); i++) {
+            in[i]-=10;
+        }
+        return in;
+    }
+
+
+    int khan_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *fi)
+    {
+        int retstat = 0;
+        sprintf(msg,"khan_fgetattr(path=%s \n",path);
+        log_msg(msg);
+        retstat = fstat(fi->fh, statbuf);
+        return retstat;
+    }
+#ifdef APPLE
+    static int xmp_setxattr(const char *path, const char *name, const char *value,  size_t size, int flags, uint32_t param) {
+#else
+        static int xmp_setxattr(const char *path, const char *name, const char *value,  size_t size, int flags) {
+#endif
+            string attr = bin2hex(value, size);
+            sprintf(msg, "setxattr call\npath:%sname:%svalue:%s\n\n\n\n\n\n\n\n\n\n", path, name, value);
             log_msg(msg);
             string xpath = "xattr:";
             xpath += path;
-            string attrs = database_getvals(xpath);
-            char* mal = strdup(attrs.c_str());
-            int count = 1;
-            int str_size = strlen(mal);
-            for(int i = 0; i<str_size; i++) {
-                if(mal[i]==':') {
-                    mal[i]='\0';
-                    count += 1;
-                }
-            }
-            if(list==NULL) {
-                sprintf(msg, "returning %d\n", str_size);
-                log_msg(msg);
-                return str_size;
-            }
-            snprintf(list, size, "%s", attrs.c_str());
-            sprintf(msg, "returning %s and %d\n", list, count);
+            redis_setval(xpath, name, attr.c_str());
+            sprintf(msg, "setxattr call\n %s, %s, %s\n\n\n\n\n\n\n\n\n\n", xpath.c_str(), name, attr.c_str());
             log_msg(msg);
-            return count;
-        }
-
-        static int xmp_removexattr(const char *path, const char *name) {
-            fprintf(stderr, "removexattr call\n %s, %s\n\n", path, name);
             return 0;
         }
+#ifdef APPLE
+        static int xmp_getxattr(const char *path, const char *name, char *value, size_t size, uint32_t param) {
+#else
+            static int xmp_getxattr(const char *path, const char *name, char *value, size_t size) {
+#endif
+                fprintf(stderr, "getxattr call\n %s, %s, %s\n", path, name, value);
+                string xpath = "xattr:";
+                xpath += path;
+                string db_val = redis_getval( xpath, name);
+                sprintf(msg, "getxattr call\npath:%s\nname:%s\nvalue:%s\nsize:%zd\n\n\n\n\n", xpath.c_str(), name, db_val.c_str(), size);
+                log_msg(msg);
+                if(db_val != "null") {
+                    db_val = hex2bin(db_val);
+                    if(value==NULL) {
+                        errno = 0;
+                        return db_val.length();
+                    }
+                    memcpy(value, db_val.c_str(), size);
+                    size_t num = snprintf(value, size, "%s", db_val.c_str());
+                    sprintf(msg, "returned\nstring:%s\ncount:%zd\n\n", value, num);
+                    log_msg(msg);
+                    errno = 0;
+                    return size;
+                }
+                errno = 1;
+                return -1;
+            }
+
+            static int xmp_listxattr(const char *path, char *list, size_t size) {
+                sprintf(msg, "listxattr call\n %s, %s\n\n", path, list);
+                log_msg(msg);
+                string xpath = "xattr:";
+                xpath += path;
+                string attrs = database_getvals(xpath);
+                char* mal = strdup(attrs.c_str());
+                int count = 1;
+                int str_size = strlen(mal);
+                for(int i = 0; i<str_size; i++) {
+                    if(mal[i]==':') {
+                        mal[i]='\0';
+                        count += 1;
+                    }
+                }
+                if(list==NULL) {
+                    sprintf(msg, "returning %d\n", str_size);
+                    log_msg(msg);
+                    return str_size;
+                }
+                snprintf(list, size, "%s", attrs.c_str());
+                sprintf(msg, "returning %s and %d\n", list, count);
+                log_msg(msg);
+                return count;
+            }
+
+            static int xmp_removexattr(const char *path, const char *name) {
+                fprintf(stderr, "removexattr call\n %s, %s\n\n", path, name);
+                return 0;
+            }
 
 #ifdef APPLE
 
-        static int xmp_setvolname(const char* param) {
-            fprintf(stderr, "apple function called setvolname\n");
-            return 0;
-        }
+            static int xmp_setvolname(const char* param) {
+                fprintf(stderr, "apple function called setvolname\n");
+                return 0;
+            }
 
-        static int xmp_exchange(const char* param1, const char* param2, unsigned long param3) {
-            fprintf(stderr, "apple function called exchange\n");
-            return 0;
-        }
+            static int xmp_exchange(const char* param1, const char* param2, unsigned long param3) {
+                fprintf(stderr, "apple function called exchange\n");
+                return 0;
+            }
 
-        static int xmp_getxtimes(const char* param1, struct timespec* param2, struct timespec* param3) {
-            fprintf(stderr, "apple function called xtimes\n");
-            return 0;
-        }
+            static int xmp_getxtimes(const char* param1, struct timespec* param2, struct timespec* param3) {
+                fprintf(stderr, "apple function called xtimes\n");
+                return 0;
+            }
 
-        static int xmp_setbkuptime(const char* param1, const struct timespec* param2) {
-            fprintf(stderr, "apple function called setbkuptimes\n");
-            return 0;
-        }
+            static int xmp_setbkuptime(const char* param1, const struct timespec* param2) {
+                fprintf(stderr, "apple function called setbkuptimes\n");
+                return 0;
+            }
 
-        static int xmp_setchgtime(const char* param1, const struct timespec* param2) {
-            fprintf(stderr, "apple function called setchgtimes\n");
-            return 0;
-        }
+            static int xmp_setchgtime(const char* param1, const struct timespec* param2) {
+                fprintf(stderr, "apple function called setchgtimes\n");
+                return 0;
+            }
 
-        static int xmp_setcrtime(const char* param1, const struct timespec* param2) {
-            fprintf(stderr, "apple function called setcrtimes\n");
-            return 0;
-        }
+            static int xmp_setcrtime(const char* param1, const struct timespec* param2) {
+                fprintf(stderr, "apple function called setcrtimes\n");
+                return 0;
+            }
 
-        static int xmp_chflags(const char* param1, uint32_t param2) {
-            fprintf(stderr, "apple function called chflags\n");
-            return 0;
-        }
-        static int xmp_setattr_x(const char* param1, struct setattr_x* param2) {
-            fprintf(stderr, "apple function called setattr_x\n");
-            return 0;
-        }
+            static int xmp_chflags(const char* param1, uint32_t param2) {
+                fprintf(stderr, "apple function called chflags\n");
+                return 0;
+            }
+            static int xmp_setattr_x(const char* param1, struct setattr_x* param2) {
+                fprintf(stderr, "apple function called setattr_x\n");
+                return 0;
+            }
 
-        static int xmp_fsetattr_x(const char* param1, struct setattr_x* param2, struct fuse_file_info* param3) {
-            fprintf(stderr, "apple function called fsetattr_x\n");
-            return 0;
-        }
+            static int xmp_fsetattr_x(const char* param1, struct setattr_x* param2, struct fuse_file_info* param3) {
+                fprintf(stderr, "apple function called fsetattr_x\n");
+                return 0;
+            }
 
 #endif
-        struct khan_param {
-            unsigned                major;
-            unsigned                minor;
-            char                    *dev_name;
-            int                     is_help;
-        };
-        /*
+            struct khan_param {
+                unsigned                major;
+                unsigned                minor;
+                char                    *dev_name;
+                int                     is_help;
+            };
+            /*
 #define KHAN_OPT(t, p) { t, offsetof(struct khan_param, p), 1 }
 
 static const struct fuse_opt khan_opts[] = {
@@ -1594,7 +1560,7 @@ void analytics(void) {
 
             PyObject_CallMethod(pInstance, strdup("Stats"),NULL);
 
-//            cout << "Graph plotted for  " << experiment_list[i] << " Returned: " << process1 << endl;
+            //            cout << "Graph plotted for  " << experiment_list[i] << " Returned: " << process1 << endl;
 
             /*                
                               FILE* stream1=popen(msg2.c_str(),"r");
