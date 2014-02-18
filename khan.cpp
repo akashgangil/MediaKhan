@@ -122,7 +122,7 @@ void process_transducers(string server) {
         database_setval("namegen","command","basename");
         database_setval(line,"attrs","ext");
         database_setval(line, "attrs", "experiment_id");
-        database_setval(line, "attrs", "file_path");
+//        database_setval(line, "attrs", "file_path");
         string ext=line;
         getline(transducers_file,line);
         const char *firstchar=line.c_str();
@@ -367,13 +367,8 @@ void* initializing_khan(void * mnt_dir) {
         static int experiment_id = 0;
         set<string> experiments;
 
-#pragma omp single nowait
-        {
-#pragma omp parallel for
             for(int count = 18; count > 0; count--)
             {  
-#pragma omp task
-                {
                     sprintf(msg, "Globbing with pattern: %s .im7\n", pattern.c_str());
                     //log_msg("Globbing with pattern " + pattern + ".im7\n");
                     log_msg(msg); 
@@ -410,10 +405,8 @@ void* initializing_khan(void * mnt_dir) {
                             database_setval(fileid,"server",servers.at(i));
                             database_setval(fileid,"location",server_ids.at(i));
                         }
-                    }
                 }
                 pattern += "/*";
-            }   
         }
 
 
@@ -448,17 +441,19 @@ void* initializing_khan(void * mnt_dir) {
         return join(ret,":");
     }
 
-    string last_string = "";
-    vector<string> last_vector;
     bool content_has(string vals, string val) {
+        static string last_string = "";
+        static vector<string> last_vector;
         vector<string> checks;
-        if(last_string == vals) {
+
+        if(last_string == vals){
             checks = last_vector;
         } else {
             checks = split(vals,":");
             last_string = vals;
             last_vector = checks;
         }
+        
         for(int i=0; i<checks.size(); i++) {
             if(checks[i]==val) {
                 return true;
@@ -543,21 +538,27 @@ void* initializing_khan(void * mnt_dir) {
         void* mint=getline(path, more, '/');
         bool loop = true;
         while(loop) {
-            //cout << "top of loop" << endl << flush;
+        //    cout << "top of loop" << endl << flush;
             loop = false;
             if(aint) {
                 string query = database_getval("attrs", attr);
-                //cout << content << "  " << attr << " " << query << endl;
+          //      cout << "PrINT "  << "  " << attr << " " << query << endl;
                 if(query!="null") {
                     string content = database_getvals(attr);
+            //        cout << "Query not null   " << content << endl;
                     if(vint) {
+              //          cout << "Vint is true " << endl;
+                //        cout << "Value is " << content_has(content, val) << endl;
+                  //      cout << "Val is  " << val << endl;
                         if(content_has(content, val) || (attr=="tags")) {
+                    //        cout << "Here1 " << val << endl;
                             string dir_content = database_getval(attr, val);
                             if(current!="none") {
                                 dir_content = str_intersect(current, dir_content);
                             }
                             string attrs_content = database_getvals("attrs");
                             if(fint) {
+                      //          cout << "fint is true " << file << endl;
                                 string fileid = database_getval("name",file);
                                 if(content_has(dir_content, fileid)) {
                                     if(!mint) {
@@ -579,18 +580,21 @@ void* initializing_khan(void * mnt_dir) {
                                 }
                             } else {
                                 // /attr/val dir
+                        //        cout << "Fint is flase " << dir_content + attrs_content << endl;
                                 dir_pop_stbuf(stbuf, dir_content+attrs_content);
                                 return 0;
                             }  
                         } 
                     } else { 
                         // /attr dir
+                        //cout << " Here 2  " << content << endl;
                         dir_pop_stbuf(stbuf, content);
                         return 0;
                     }
                 }
             } else {
                 string types=database_getvals("attrs");
+                //cout << " HEre 3 " << types << endl;
                 dir_pop_stbuf(stbuf, types);
                 return 0;
             }
@@ -599,7 +603,6 @@ void* initializing_khan(void * mnt_dir) {
     }
 
     static int khan_getattr(const char *c_path, struct stat *stbuf) {
-
         //cout << "started get attr" << endl << flush;
         string pre_processed = c_path+1;
         if(pre_processed == ".DS_Store") {
@@ -632,6 +635,7 @@ void* initializing_khan(void * mnt_dir) {
 
                 filler(buf, filename.c_str(), NULL, 0);
             } else {
+                cout << "Convert is false " << endl;
                 filler(buf, contents[i].c_str(), NULL, 0);
             }
         }
@@ -650,23 +654,35 @@ void* initializing_khan(void * mnt_dir) {
         void* vint=getline(path, val, '/');
         void* fint=getline(path, file, '/');
         void* mint=getline(path, more, '/');
+        
         bool loop = true;
         while(loop) {
             loop = false;
+         //   cout << "HO HO JUMPING!!  " << endl; 
             string content = database_getvals("attrs");
+
+//            cout << "Attrs is " << content << endl;
+            
             if(aint) {
-                if(content_has(content, attr)) {
+  //               cout << "Aint is true " << endl;
+                 if(content_has(content, attr)) {
                     current_attrs += ":";
                     current_attrs += attr; 
                     content = database_getvals(attr);
                     if(vint) {
+    //                    cout << " Content is " << content << endl;
+      //                  cout << "Value is  " << content_has(content, val) << endl;
+        //                cout << "Vint is true " << endl;
                         if(content_has(content, val) || (attr=="tags")) {
                             string dir_content = database_getval(attr, val);
+          //                  cout << " ABRA  " << endl;
                             if(current_content!="none") {
+            //                    cout << " f sdfdsfsdf " << endl;
                                 dir_content = intersect(current_content, dir_content);
                             }
                             string attrs_content = database_getvals("attrs");
                             if(fint) {
+              //                  cout << "Fint is true " << endl;
                                 if(content_has(attrs_content, file)) {
                                     //repeat with aint = fint, vint = mint, etc
                                     aint = fint;
@@ -680,7 +696,7 @@ void* initializing_khan(void * mnt_dir) {
                                 }
                             } else {
                                 // /attr/val dir
-                                sprintf(msg, "%s, %s\n\n\n\n\n\n", attrs_content.c_str(), current_attrs.c_str());
+                                sprintf(msg, "Else %s, %s\n\n\n\n\n\n", attrs_content.c_str(), current_attrs.c_str());
                                 log_msg(msg);
                                 attrs_content = subtract(attrs_content, current_attrs);
                                 dir_pop_buf(buf, filler, dir_content, true);
@@ -689,13 +705,16 @@ void* initializing_khan(void * mnt_dir) {
                         } 
                     } else { 
                         // /attr dir
+  //                      cout << "Going solo1 " << endl;
                         dir_pop_buf(buf, filler, content, false);
                     }
                 }
             } else {
+    //            cout << " Going solo2 " << endl;
                 dir_pop_buf(buf, filler, content, false);
             }
         }
+//        cout << "populate read dir end  " << endl;
     }
 
     static int xmp_readdir(const char *c_path, void *buf, fuse_fill_dir_t filler,off_t offset, struct fuse_file_info *fi) {
@@ -708,6 +727,7 @@ void* initializing_khan(void * mnt_dir) {
         string after = resolve_selectors(pre_processed);
         stringstream path(after);
         populate_readdir_buffer(buf, filler, path);
+        //cout << "xmp_readdir  end " << endl;
         return 0;
     }
 
@@ -1650,8 +1670,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    fuse_opt_add_arg(&args, "-o");
-    fuse_opt_add_arg(&args, "allow_other");
+//    fuse_opt_add_arg(&args, "-o");
+//    fuse_opt_add_arg(&args, "allow_other");
 
     //set signal handler
     signal(SIGTERM, my_terminate);
