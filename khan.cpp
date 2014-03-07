@@ -20,6 +20,8 @@ vector<string> server_ids;
 string this_server;
 string this_server_id;
 
+static string primary_attribute = "";
+
 //PyObject* cloud_interface;
 ofstream rename_times;
 ofstream start_times;
@@ -123,7 +125,20 @@ void process_transducers(string server) {
         database_setval(line,"attrs","ext");
         database_setval(line, "attrs", "experiment_id");
 //        database_setval(line, "attrs", "file_path");
+
         string ext=line;
+        
+        log_msg("===Unique Attribute!=== ");
+        getline(transducers_file, line);
+        stringstream s_uniq(line.c_str());
+        cout << "Line   " << line << endl;
+        string uniq_attr = "";
+        getline(s_uniq, uniq_attr, '*');
+        if(uniq_attr != ""){
+          primary_attribute = uniq_attr;      
+        }
+        cout << primary_attribute << endl; 
+        
         getline(transducers_file,line);
         const char *firstchar=line.c_str();
         while(firstchar[0]=='-') {
@@ -377,15 +392,15 @@ void* initializing_khan(void * mnt_dir) {
                     sprintf(msg, "Glob Buffer: %d\n", files.gl_pathc); 
                     log_msg(msg);
                     //log_msg("Glob buffer" + files.gl_pathc + "\n");
-                    if(files.gl_pathc != 0 ) {
-                        experiment_id++;
-                    }
+//                    if(files.gl_pathc != 0 ) {
+//                        experiment_id++;
+//                    }
                     for(int j=0; j<files.gl_pathc; j++) {//for each file
                         string file_path = files.gl_pathv[j];
-                        experiments.insert(file_path.substr(0, file_path.size()-11));
-                        ostringstream ss;
-                        ss.flush();
-                        ss << experiments.size();
+//                        experiments.insert(file_path.substr(0, file_path.size()-11));
+//                        ostringstream ss;
+//                        ss.flush();
+//                        ss << experiments.size();
                         sprintf(msg, "*** FILE Path *** %s\n", file_path.c_str());
                         string ext = strrchr(file_path.c_str(),'.')+1;
                         string filename=strrchr(file_path.c_str(),'/')+1;
@@ -394,7 +409,7 @@ void* initializing_khan(void * mnt_dir) {
                             database_setval(fileid,"ext",ext);
                             database_setval(fileid,"server",servers.at(i));
                             database_setval(fileid,"location",server_ids.at(i));
-                            database_setval(fileid, "experiment_id", ss.str());
+//                          database_setval(fileid, "experiment_id", ss.str());
                             database_setval(fileid, "file_path", file_path);
                             for(int k=0; k<server_ids.size(); k++) {
                                 database_setval(fileid, server_ids.at(k), "0");
@@ -463,6 +478,7 @@ void* initializing_khan(void * mnt_dir) {
     }
 
     void dir_pop_stbuf(struct stat* stbuf, string contents) {
+        cout << "Dir pop STBUF called ! " << endl;
         time_t current_time;
         time(&current_time);
         stbuf->st_mode=S_IFDIR | 0755;
@@ -532,6 +548,7 @@ void* initializing_khan(void * mnt_dir) {
     int populate_getattr_buffer(struct stat* stbuf, stringstream &path) {
         string attr, val, file, more;
         string current = "none";
+        string current_path =  path.str();
         void* aint=getline(path, attr, '/');
         void* vint=getline(path, val, '/');
         void* fint=getline(path, file, '/');
@@ -580,8 +597,22 @@ void* initializing_khan(void * mnt_dir) {
                                 }
                             } else {
                                 // /attr/val dir
-                        //        cout << "Fint is flase " << dir_content + attrs_content << endl;
-                                dir_pop_stbuf(stbuf, dir_content+attrs_content);
+                                cout << "Fint is flase " << dir_content + attrs_content << endl;
+                                //if(dir_content != ""){
+                                    dir_pop_stbuf(stbuf, dir_content+attrs_content);
+                                /*}
+                                else{
+                                    cout << "Here   1234" << endl;
+                                    string p;
+                                    cout << "ABC " << endl;
+                                    //getline(path, p);
+                                    cout << "ADSASDAS    " <<  (mountpoint + "/" + current_path).c_str() << endl;
+                                    //cout << current_path; 
+                                    //cout << "DEF  " << endl; 
+                                    //cout << getline(path, p);
+                                    //unlink((mountpoint + "/" + current_path).c_str());
+//                                    unlink();
+                                }*/
                                 return 0;
                             }  
                         } 
@@ -650,6 +681,7 @@ void* initializing_khan(void * mnt_dir) {
         string attr, val, file, more;
         string current_content = "none";
         string current_attrs = "none";
+        string non_empty_content = "";
         void* aint=getline(path, attr, '/');
         void* vint=getline(path, val, '/');
         void* fint=getline(path, file, '/');
@@ -658,31 +690,58 @@ void* initializing_khan(void * mnt_dir) {
         bool loop = true;
         while(loop) {
             loop = false;
-         //   cout << "HO HO JUMPING!!  " << endl; 
+            cout << "HO HO JUMPING!!  " << endl; 
             string content = database_getvals("attrs");
 
-//            cout << "Attrs is " << content << endl;
+            cout << "Attrs is " << content << endl;
             
             if(aint) {
-  //               cout << "Aint is true " << endl;
+                 cout << "Aint is true " << endl;
+                 cout << "Attr " << attr << endl;
                  if(content_has(content, attr)) {
                     current_attrs += ":";
                     current_attrs += attr; 
                     content = database_getvals(attr);
+
+                    cout << "Current Content   " << current_content << endl;                
+   
+                   
+                    if(current_content != "none"){
+                    cout << "Content " << content << endl;
+
+                    non_empty_content = "";
+
+                    vector<string> vec_1 = split(content, ":");
+                    for(int i = 0; i < vec_1.size(); ++i){
+                      cout << "Attr " << attr << "  Val " << vec_1[i] << endl;
+                      string dir_content = database_getval(attr, vec_1[i]);
+                      if(current_content!="none") {
+                        dir_content = str_intersect(current_content, dir_content);
+                      }
+                      cout << "Iteration " << " ** " << i << "   " << dir_content << endl;
+                      if(dir_content != ""){
+                        non_empty_content += vec_1[i] + ":";
+                      }
+                    }
+                    }else non_empty_content = content;
+
+                  
+                    cout << "Non Empty Content  " << non_empty_content << endl;
+
                     if(vint) {
-    //                    cout << " Content is " << content << endl;
-      //                  cout << "Value is  " << content_has(content, val) << endl;
-        //                cout << "Vint is true " << endl;
+                        cout << " Content is " << content << endl;
+                        cout << "Value is  " << content_has(content, val) << endl;
+                        cout << "Vint is true " << endl;
                         if(content_has(content, val) || (attr=="tags")) {
                             string dir_content = database_getval(attr, val);
-          //                  cout << " ABRA  " << endl;
+                            cout << " ABRA  " << endl;
                             if(current_content!="none") {
-            //                    cout << " f sdfdsfsdf " << endl;
+                                cout << " f sdfdsfsdf " << endl;
                                 dir_content = intersect(current_content, dir_content);
                             }
                             string attrs_content = database_getvals("attrs");
                             if(fint) {
-              //                  cout << "Fint is true " << endl;
+                                cout << "Fint is true " << endl;
                                 if(content_has(attrs_content, file)) {
                                     //repeat with aint = fint, vint = mint, etc
                                     aint = fint;
@@ -699,22 +758,24 @@ void* initializing_khan(void * mnt_dir) {
                                 sprintf(msg, "Else %s, %s\n\n\n\n\n\n", attrs_content.c_str(), current_attrs.c_str());
                                 log_msg(msg);
                                 attrs_content = subtract(attrs_content, current_attrs);
+                                cout << "Dir Content  " << dir_content << endl;
+                                cout << "Attr Content  " << attrs_content << endl;
                                 dir_pop_buf(buf, filler, dir_content, true);
                                 dir_pop_buf(buf, filler, attrs_content, false);
                             }  
                         } 
                     } else { 
                         // /attr dir
-  //                      cout << "Going solo1 " << endl;
-                        dir_pop_buf(buf, filler, content, false);
+                        cout << "Going solo1 " << non_empty_content << endl;
+                        dir_pop_buf(buf, filler, non_empty_content, false);
                     }
                 }
             } else {
-    //            cout << " Going solo2 " << endl;
+                cout << " Going solo2 " << endl;
                 dir_pop_buf(buf, filler, content, false);
             }
         }
-//        cout << "populate read dir end  " << endl;
+        cout << "populate read dir end  " << endl;
     }
 
     static int xmp_readdir(const char *c_path, void *buf, fuse_fill_dir_t filler,off_t offset, struct fuse_file_info *fi) {
@@ -1526,7 +1587,7 @@ void my_terminate(int param) {
 
 
 void analytics(void) {
-    string experiments =  database_getvals("experiment_id"); 
+    string experiments =  database_getvals(primary_attribute); 
     sprintf(msg, "Experiment Id's: %s\n", experiments.c_str());
     log_msg(msg);
     vector<string> experiment_list = split(experiments, ":");
@@ -1536,7 +1597,7 @@ void analytics(void) {
         {
             sprintf(msg, "Experiment Number: %s\n", experiment_list[i].c_str());
             log_msg(msg);
-            string vals = database_getval("experiment_id", experiment_list[i]);
+            string vals = database_getval("Time", experiment_list[i]);
             sprintf(msg, "File Ids: %s\n", vals.c_str());
             log_msg(msg);
             vector<string> exp_vec = split(vals, ":");
@@ -1580,7 +1641,7 @@ void analytics(void) {
                 database_setval(fileid,"server",servers.at(0));
                 database_setval(fileid,"file_path",exp_dir + filename);
                 database_setval(fileid,"location",server_ids.at(0));
-                database_setval(fileid, "experiment_id", experiment_list[i]);
+                database_setval(fileid, primary_attribute, experiment_list[i]);
             }
 
             filename = "experiment_" + experiment_list[i] + "_stats.txt"; 
@@ -1590,7 +1651,7 @@ void analytics(void) {
                 database_setval(fileid,"server",servers.at(0));
                 database_setval(fileid,"file_path",exp_dir + filename);
                 database_setval(fileid,"location",server_ids.at(0));
-                database_setval(fileid, "experiment_id", experiment_list[i]);
+                database_setval(fileid, primary_attribute, experiment_list[i]);
             }
 
         }
